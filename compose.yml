@@ -1,0 +1,21 @@
+name: rails-ai-reliability-lab
+services:
+  db:
+    # Verified Docker Hub linux/amd64 PostgreSQL 17 manifest.
+    image: postgres:17@sha256:3cec7eb015ba8adb28139fa5c83b8489cdf0e666e53dfdf20f598ae0cc8739e3
+    platform: linux/amd64
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-reliability_lab}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      POSTGRES_DB: ${DB_NAME:-rails_ai_reliability_lab_development}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  postgres_data:

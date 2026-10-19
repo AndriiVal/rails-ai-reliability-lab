@@ -1,0 +1,20 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS", 5) %>
+  host: <%= ENV.fetch("DB_HOST", "127.0.0.1").to_json %>
+  port: <%= ENV.fetch("DB_PORT", 5433) %>
+  username: <%= ENV.fetch("DB_USERNAME", "reliability_lab").to_json %>
+  password: <%= ENV.fetch("DB_PASSWORD", "").to_json %>
+
+development:
+  <<: *default
+  database: <%= ENV.fetch("DB_NAME", "rails_ai_reliability_lab_development").to_json %>
+
+test:
+  <<: *default
+  database: <%= ENV.fetch("DB_TEST_NAME", "rails_ai_reliability_lab_test").to_json %>
+
+production:
+  <<: *default
+  database: <%= ENV.fetch("DB_NAME", "rails_ai_reliability_lab_production").to_json %>

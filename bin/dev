@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+set -eu
+bin/rails tailwindcss:build
+exec bin/rails server -b 127.0.0.1 "$@"

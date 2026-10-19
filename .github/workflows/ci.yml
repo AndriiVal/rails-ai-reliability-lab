@@ -1,0 +1,43 @@
+name: CI
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    env:
+      RAILS_ENV: test
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_TEST_NAME: rails_ai_reliability_lab_test
+      DB_USERNAME: reliability_lab
+      DB_PASSWORD: ci-dummy-password
+      BASIC_AUTH_USERNAME: ci-dummy-user
+      BASIC_AUTH_PASSWORD: ci-dummy-auth-password
+      LLM_PROVIDER: fake
+      ENABLE_REAL_LLM: "false"
+    services:
+      postgres:
+        image: postgres:17@sha256:3cec7eb015ba8adb28139fa5c83b8489cdf0e666e53dfdf20f598ae0cc8739e3
+        env:
+          POSTGRES_USER: reliability_lab
+          POSTGRES_PASSWORD: ci-dummy-password
+          POSTGRES_DB: rails_ai_reliability_lab_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U reliability_lab -d rails_ai_reliability_lab_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+      - run: bin/ci
