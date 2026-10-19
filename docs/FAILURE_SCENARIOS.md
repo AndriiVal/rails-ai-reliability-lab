@@ -2,7 +2,8 @@
 
 These are deterministic simulations, not evidence of real upstream faults or
 real HTTP transport timeout enforcement. No provider SDK, external request,
-API key, persistence, telemetry or interactive dashboard is involved. Use only
+API key or real provider is involved. The dashboard and API record metadata only
+and emit allowlisted terminal events for accepted executions. Use only
 synthetic tickets and dummy Basic Auth credentials on localhost; public hosting
 is not approved. Start Rails and export reviewed environment variables per README.
 
@@ -104,3 +105,12 @@ For exhausted transient or timeout failures it is true, meaning a separate
 future client request may be appropriate. The current server request has
 terminated; this advice neither restarts it nor promises future success.
 See API.md for every public status code. No raw error metadata is returned.
+
+## Browser simulations
+
+Use authenticated `/lab`, enter a synthetic ticket, select one of the same eight
+scenarios and submit the CSRF-protected form. The dashboard is always Fake-only
+even under real-provider configuration. Results display actual attempts and
+Runner latency, plus a plain-language scenario explanation; no per-attempt
+trace is invented. Recent history contains only bounded fake metadata. See
+[dashboard and telemetry](DASHBOARD.md) for the shared recording lifecycle.

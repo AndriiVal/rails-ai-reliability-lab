@@ -136,8 +136,12 @@ only**, with missing usage null. They exclude failed/ambiguous attempts, cache
 accounting and any other usage fields, so they are not total billed tokens.
 The documented SDK APIResponse middleware header interface provides `request-id`;
 only a bounded `req_` opaque identifier is retained internally in Response. It is
-not returned publicly, logged or persisted, and never replaces the public UUID.
-No database tables, persistence or application telemetry were added.
+not returned publicly or logged and never replaces the public UUID. The shared
+workflow may store this bounded opaque value in its metadata-only row.
+The adapter itself owns no storage or telemetry. The shared application workflow
+now records allowlisted metadata and terminal Rails events; see
+[DASHBOARD.md](DASHBOARD.md). Raw input/output remains unrecorded, and the
+interactive dashboard is always Fake-only.
 
 ## Optional manual smoke test — separate authorization required
 

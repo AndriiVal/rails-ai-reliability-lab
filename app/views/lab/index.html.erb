@@ -1,6 +1,96 @@
-<section class="mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-  <p class="text-sm font-semibold uppercase tracking-wide text-indigo-700">Simulation environment</p>
-  <h1 class="mt-3 text-3xl font-bold text-slate-900">Rails AI Reliability Lab</h1>
-  <p class="mt-4 text-lg text-slate-700">A Ruby and Rails engineering laboratory for reliable LLM integrations.</p>
-  <p class="mt-4 text-slate-600">This release provides the application foundation. No real LLM requests are performed.</p>
-</section>
+<% content_for :title, "Reliability dashboard · Rails AI Reliability Lab" %>
+<div class="mx-auto w-full max-w-6xl pb-12">
+  <header class="mb-8">
+    <p class="text-sm font-semibold uppercase tracking-widest text-indigo-700">Simulation environment · Fake Provider</p>
+    <h1 class="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Rails AI Reliability Lab</h1>
+    <p class="mt-3 text-lg text-slate-700">Simulated LLM failure scenarios</p>
+    <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Explore bounded retries, time budgets and strict output validation with invented support tickets. No real LLM requests can be made from this dashboard. These simulations do not evaluate AI accuracy.</p>
+  </header>
+
+  <div class="grid gap-6 lg:grid-cols-2">
+    <section aria-labelledby="input-heading" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+      <h2 id="input-heading" class="text-xl font-semibold text-slate-900">Run a simulation</h2>
+      <% if @error_code == :invalid_input %>
+        <p role="alert" id="validation-errors" class="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">Enter 10–3,000 characters of synthetic ticket text and choose a supported scenario.</p>
+      <% end %>
+      <%= form_with url: lab_run_path, method: :post, data: { turbo: false }, class: "mt-5 space-y-5" do |form| %>
+        <div>
+          <%= form.label :ticket_text, "Synthetic support ticket", class: "block text-sm font-semibold text-slate-800" %>
+          <p id="ticket-guidance" class="mt-1 text-sm text-slate-500">10–3,000 characters. Invented data only; never submit personal or customer details.</p>
+          <%= form.text_area :ticket_text, value: @ticket_text.is_a?(String) ? @ticket_text : "", rows: 5, required: true, aria: { describedby: "ticket-guidance", invalid: @error_code == :invalid_input }, class: "mt-2 w-full rounded-lg border border-slate-300 bg-slate-50 p-3 text-slate-900 focus:outline-2 focus:outline-offset-2 focus:outline-indigo-600" %>
+        </div>
+        <div>
+          <%= form.label :scenario, "Failure scenario", class: "block text-sm font-semibold text-slate-800" %>
+          <%= form.select :scenario, LabHelper::SCENARIOS.map { |key, description| [description.first, key] }, { selected: @scenario }, class: "mt-2 w-full rounded-lg border border-slate-300 bg-white p-3 text-slate-900 focus:outline-2 focus:outline-offset-2 focus:outline-indigo-600" %>
+          <p class="mt-2 text-sm text-slate-500">Retries use real waits locally. A run may occupy this request for up to the cooperative deadline.</p>
+        </div>
+        <%= form.submit "Run scenario", class: "w-full cursor-pointer rounded-lg bg-indigo-700 px-5 py-3 font-semibold text-white hover:bg-indigo-800 focus:outline-2 focus:outline-offset-2 focus:outline-indigo-600 sm:w-auto" %>
+      <% end %>
+      <details class="mt-6 border-t border-slate-200 pt-4 text-sm text-slate-600">
+        <summary class="cursor-pointer font-semibold text-slate-800 focus:outline-2 focus:outline-indigo-600">What do the scenarios simulate?</summary>
+        <dl class="mt-3 space-y-3">
+          <% LabHelper::SCENARIOS.each_value do |label, description| %>
+            <div><dt class="font-semibold text-slate-800"><%= label %></dt><dd><%= description %></dd></div>
+          <% end %>
+        </dl>
+      </details>
+    </section>
+
+    <section aria-labelledby="result-heading" aria-live="polite" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+      <h2 id="result-heading" class="text-xl font-semibold text-slate-900">Execution result</h2>
+      <% if @outcome || @error_code %>
+        <p class="mt-5 inline-block rounded-full px-3 py-1 text-sm font-semibold <%= @outcome ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800' %>"><%= @outcome ? "Succeeded" : "Failed" %> · HTTP <%= @http_status %></p>
+        <% if @outcome %>
+          <% result = @outcome.fetch(:result) %>
+          <dl class="mt-5 grid grid-cols-2 gap-4 text-sm">
+            <div><dt class="text-slate-500">Category</dt><dd class="mt-1 font-semibold text-slate-900"><%= result.fetch("category").capitalize %></dd></div>
+            <div><dt class="text-slate-500">Priority</dt><dd class="mt-1 font-semibold text-slate-900"><%= result.fetch("priority").capitalize %></dd></div>
+            <div class="col-span-2"><dt class="text-slate-500">Human review required</dt><dd class="mt-1 font-semibold text-slate-900"><%= result.fetch("requires_human_review") ? "Yes" : "No" %></dd></div>
+          </dl>
+          <p class="mt-5 break-words rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-800"><%= result.fetch("summary") %></p>
+        <% else %>
+          <p role="status" class="mt-4 break-words font-mono text-sm text-red-800"><%= @error_code %></p>
+        <% end %>
+        <% meta = @outcome ? @outcome.fetch(:meta) : { attempt_count: @attempt_count, latency_ms: @latency_ms } %>
+        <dl class="mt-6 grid grid-cols-2 gap-4 border-t border-slate-200 pt-5 text-sm">
+          <div><dt class="text-slate-500">Actual attempts</dt><dd class="mt-1 font-semibold" data-testid="attempt-count"><%= meta[:attempt_count].nil? ? "Unknown" : meta[:attempt_count] %></dd></div>
+          <div><dt class="text-slate-500">Measured elapsed time</dt><dd class="mt-1 font-semibold"><%= meta[:latency_ms].nil? ? "Unavailable" : "#{meta[:latency_ms]} ms" %></dd></div>
+          <div><dt class="text-slate-500">Provider / model</dt><dd class="mt-1 font-semibold">fake / fake-v1</dd></div>
+          <div><dt class="text-slate-500">Request reference</dt><dd class="mt-1 font-mono"><%= @request_id&.first(8) %>…</dd></div>
+        </dl>
+        <p class="mt-5 text-sm leading-6 text-slate-600"><%= run_explanation %></p>
+      <% else %>
+        <div class="mt-6 rounded-xl border border-dashed border-slate-300 p-6 text-slate-600">
+          <p class="font-semibold text-slate-800">Ready when you are</p>
+          <p class="mt-2 text-sm leading-6">Choose a scenario and run the invented ticket. The result will show what actually happened, including retry counts and elapsed time.</p>
+        </div>
+      <% end %>
+    </section>
+  </div>
+
+  <section aria-labelledby="history-heading" class="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+    <h2 id="history-heading" class="text-xl font-semibold text-slate-900">Recent simulated runs</h2>
+    <p class="mt-1 text-sm text-slate-500">Latest 10 Fake Provider runs. Metadata only; ticket text and classifications are never stored.</p>
+    <% if @recent_runs.empty? %>
+      <p class="mt-5 text-sm text-slate-600"><%= @history_unavailable ? "History is temporarily unavailable." : "No simulated runs yet. Run your first scenario above." %></p>
+    <% else %>
+      <div class="mt-5 overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <caption class="sr-only">Recent Fake Provider execution metadata, newest first</caption>
+          <thead class="border-b border-slate-200 text-slate-500"><tr><% ["Scenario", "Status", "Attempts", "Elapsed", "Error", "Completed (UTC)"].each do |heading| %><th scope="col" class="whitespace-nowrap px-3 py-3 font-medium"><%= heading %></th><% end %></tr></thead>
+          <tbody class="divide-y divide-slate-100">
+            <% @recent_runs.each do |run| %>
+              <tr><td class="px-3 py-4 font-medium text-slate-800"><%= LabHelper::SCENARIOS.fetch(run.scenario, ["Simulation"]).first %></td><td class="px-3 py-4"><%= run.status %></td><td class="px-3 py-4"><%= run.attempt_count.nil? ? "Unknown" : run.attempt_count %></td><td class="whitespace-nowrap px-3 py-4"><%= run.latency_ms ? "#{run.latency_ms} ms" : "—" %></td><td class="px-3 py-4 font-mono"><%= run.error_code || "—" %></td><td class="whitespace-nowrap px-3 py-4"><% timestamp = run.completed_at || run.created_at %><time datetime="<%= timestamp.utc.iso8601 %>"><%= timestamp.utc.strftime("%d %b %H:%M:%S") %></time></td></tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+  </section>
+  <footer class="mt-8 flex flex-wrap gap-x-5 gap-y-3 text-sm text-slate-600">
+    <%= link_to "GitHub repository", "https://github.com/AndriiVal/rails-ai-reliability-lab", class: "underline focus:outline-2 focus:outline-indigo-600" %>
+    <%= link_to "Architecture", "https://github.com/AndriiVal/rails-ai-reliability-lab/blob/master/docs/ARCHITECTURE.md", class: "underline focus:outline-2 focus:outline-indigo-600" %>
+    <%= link_to "Failure scenarios", "https://github.com/AndriiVal/rails-ai-reliability-lab/blob/master/docs/FAILURE_SCENARIOS.md", class: "underline focus:outline-2 focus:outline-indigo-600" %>
+    <p class="w-full text-xs">Synthetic demonstration only. Local authenticated use; no production readiness or real-provider performance claims.</p>
+  </footer>
+</div>

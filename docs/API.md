@@ -46,7 +46,8 @@ All eight scenarios are supported:
 
 Deadline exhaustion can stop a transient sequence earlier. Attempt counts always
 reflect actual calls. Detailed timing and curl examples are in
-[Failure scenarios](FAILURE_SCENARIOS.md). The browser page remains static.
+[Failure scenarios](FAILURE_SCENARIOS.md). The [interactive browser dashboard](DASHBOARD.md) runs these simulations with
+CSRF protection and an explicit server-owned Fake workflow.
 
 ## Responses
 
@@ -74,7 +75,8 @@ Successful example (UUID and latency vary):
 
 The server generates a fresh UUID independently of client request IDs. Latency
 uses actual elapsed monotonic time rounded to milliseconds; fast calls may be 0.
-Fake token counts are null. No input, result or request identifier is persisted.
+Fake token counts are null. Inputs/results are never persisted; the application
+UUID correlates with one metadata row and its terminal structured event.
 
 The result has exactly category, priority, summary and requires_human_review.
 Category is billing/technical/account/other; priority is low/medium/high. Summary
@@ -130,7 +132,7 @@ Summaries are fixed synthetic strings, not copies of user text or model output.
 This fixture offers predictable behavior and does not measure classification quality.
 
 Run bin/ci or bundle exec rspec after preparing the dedicated test database.
-Tests deny unmocked HTTP and cover schema enforcement, privacy, no database writes,
+Tests deny unmocked HTTP and cover schema enforcement, privacy, metadata-only database writes,
 authentication, bounded parsing, Unicode lengths and exact invocation counts.
 
 ## Optional Anthropic success metadata
@@ -141,6 +143,19 @@ model claude-haiku-4-5-20251001 and actual nonnegative SDK input/output tokens
 billed usage across retries. Latency and attempt counts still come from Runner.
 Provider request IDs stay internal; the public request_id is always a fresh
 application UUID. Real summaries may reflect submitted text, so use synthetic
-input only. No raw prompt, completion or usage is persisted. Truncation, refusal,
+input only. No raw prompt or completion is persisted. Final-success usage is
+recorded as nullable integer metadata. Truncation, refusal,
 invalid content and schema violations produce non-retryable HTTP 502. See
 [setup and transport limitations](ANTHROPIC_SETUP.md); no live calls run in CI.
+
+## Metadata recording
+
+Authenticated accepted executions create one llm_runs row, including one row for
+a run that retries. Controlled failures retain actual counts and Runner latency;
+unexpected errors use null for unknown counts. The response request_id is the
+same UUID stored in metadata and the terminal event. No input/result/body content
+is recorded. Invalid/malformed/unauthenticated requests and disabled provider
+configuration create no row or terminal event. Initial recording failure prevents
+provider invocation and returns safe 500. Terminal recording/event failures never
+repeat a provider call; rows/events may be incomplete after a crash or DB failure.
+See [recording and retention contract](DASHBOARD.md). No public history API exists.

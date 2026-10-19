@@ -62,7 +62,7 @@ future-date minimums, oversized decimals without conversion, exact remaining-bud
 cutoffs and malformed-value fallback. Both reported defects were reproduced before
 fixing the production code. All eight localhost scenario status/count checks pass.
 
-## Current Anthropic opt-in adapter verification (PR #4)
+## Historical Anthropic opt-in adapter verification (PR #4)
 
 On Ruby 4.0.6 / Rails 8.1.4 / PostgreSQL 17.11:
 
@@ -98,6 +98,41 @@ was made. Account access, model behavior, actual billing and network latency are
 unverified. See [Anthropic setup](ANTHROPIC_SETUP.md) for compatibility evidence,
 limits and separately authorized manual instructions. GitHub run results are
 recorded in the Draft PR description after completion.
+
+## Current dashboard and safe telemetry verification (PR #5)
+
+Verified on 2026-10-20 with Ruby 4.0.6, Rails 8.1.4, PostgreSQL 17.11 and the
+unchanged Anthropic 1.80.0 lockfile:
+
+- Full RSpec: **396 examples, 0 failures** (60 new examples).
+- `bin/ci`: all seven steps passed, including **396 examples, 0 failures**.
+- RuboCop: **65 files, no offenses**; Brakeman: **0 errors, 0 security warnings**.
+- Development/test db:prepare and new metadata migration passed, along with
+  dependency checks, Zeitwerk, assets and git diff --check.
+- Actual localhost form POSTs used server-generated CSRF tokens/cookies for all
+  eight scenarios; all eight API scenarios also passed expected status/counts.
+  A missing-token browser POST was rejected with 422. All calls used Fake.
+- Desktop/mobile synthetic screenshots were reviewed; no browser driver or new
+  frontend dependency was added to the test suite.
+- Independent read-only review completed. Its browser UTF-16 maxlength finding
+  was fixed by keeping the Unicode length limit authoritative on the server.
+
+Tests verify Fake isolation with fully enabled real settings, request UUID/row/
+event correlation, one metadata row per invocation across retries, controlled
+failure counts/latency and unknown counts on unexpected exceptions. PostgreSQL
+concurrent completion publishes one event. Initial recording failures stop before
+provider invocation; terminal DB/event/subscriber failures do not repeat calls.
+Model/schema/index constraints, immutable terminal states, exact event payloads,
+no content fields, private bounded history, CSRF, missing/blank credentials,
+HTML escaping and log/content sentinels are covered. Existing API privacy tests
+now require authorized metadata-only writes rather than removing those checks.
+
+No live Anthropic call was made. WebMock still denies unmocked HTTP. No unrelated
+gem upgrades, external exporters, background recovery, deployment or Milestone 6
+implementation is included. Crash gaps can leave started rows or omit terminal
+events; delivery is best effort. See [DASHBOARD.md](DASHBOARD.md) for failure and
+manual retention policy. Actual GitHub Actions results are recorded in the Draft
+PR description after the run completes.
 
 ## Diagnostic and scanning limits
 

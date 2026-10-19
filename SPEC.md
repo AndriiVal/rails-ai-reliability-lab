@@ -1,6 +1,6 @@
 # Rails AI Reliability Lab — Technical Specification
 
-**Status:** Foundation, the fake classification API and the bounded reliability engine are implemented, including all eight synthetic scenarios. The optional Anthropic adapter is implemented with mocked SDK verification; live account/model behavior remains unverified. Telemetry, persistence and the interactive dashboard remain planned.
+**Status:** Foundation, the fake classification API and the bounded reliability engine are implemented, including all eight synthetic scenarios. The optional Anthropic adapter is implemented with mocked SDK verification; live account/model behavior remains unverified. The interactive Fake-only dashboard, metadata-only PostgreSQL recording and native Rails terminal events are implemented. Final sample audit/release review remains planned.
 **Version:** 1.0 — 2026-10-19
 **Repository:** `AndriiVal/rails-ai-reliability-lab`
 **Owner:** Andrii Valchuk
@@ -462,7 +462,7 @@ rails-ai-reliability-lab/
 | T21 | CI uses Ruby 4.0.x, Rails 8.1.x, PostgreSQL; all checks pass |
 | T22 | A real-provider smoke test is excluded from ordinary CI |
 
-**Baseline:** all 22 classes of checks should have executable examples, with multiple spec cases for schema edge conditions. No arbitrary coverage-percent target in MVP; focus on critical paths and deterministic failures.
+**Baseline:** these are target check classes across the MVP, with multiple spec cases for schema edge conditions. Current run metadata/event and browser tests cover Milestone 5; the final sample audit/release review remains Milestone 6. No arbitrary coverage-percent target in MVP; focus on critical paths and deterministic failures.
 
 ## Continuous integration and local quality gates
 
@@ -494,7 +494,7 @@ Rails 8.1 also supports `config/ci.rb` / `bin/ci`. If using it, **edit its gener
 
 ## Product roadmap
 
-Milestones 1–4 are implemented, with real-provider behavior verified through mocks only. Milestones 5–6 remain planned.
+Milestones 1–5 are implemented, with real-provider behavior verified through mocks only. Milestone 6 remains planned.
 
 ### Milestone 1 — Foundation
 
@@ -523,6 +523,8 @@ Milestones 1–4 are implemented, with real-provider behavior verified through m
 **Acceptance:** tests mock all SDK/network calls and verify no SDK retries; fake CI still passes with no key. Opt-in manual real smoke succeeds **if** an authorized key and supported model are supplied; otherwise clearly marked unverified without blocking fake CI.
 
 ### Milestone 5 — Demo and safe telemetry
+
+**Implementation:** Fake-only `/lab` and CSRF-protected `/lab/run`; shared ClassificationWorkflow; metadata-only LlmRun and RunRecorder; one conditional terminal transition and native Rails event. See [dashboard contract](docs/DASHBOARD.md). No real request, deployment or scheduled cleanup is included.
 
 **Scope:** `/lab` UX, `llm_runs` metadata table and structured events, minimal recent results, accessible UI, no raw request bodies saved, safe HTML escaping.
 

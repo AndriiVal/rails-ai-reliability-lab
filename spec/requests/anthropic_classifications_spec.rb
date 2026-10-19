@@ -138,7 +138,13 @@ RSpec.describe "Anthropic classification API", type: :request do
     expect(body.dig("error", "code")).to eq("internal_error")
     expect(log.string).not_to include("PRIVATE", "synthetic-key", "spec-password", auth, Providers::Anthropic::SYSTEM_PROMPT)
     expect(response.body).not_to include("PRIVATE", "synthetic-key", "StandardError")
-    expect(writes).to be_empty
+    expect(writes.length).to eq(6)
+    expect(writes).to all(match(/\A(?:INSERT INTO|UPDATE) "llm_runs"/))
+    runs = LlmRun.order(:id).last(3)
+    expect(runs.map(&:status)).to eq(%w[succeeded failed failed])
+    expect(runs.map(&:attempt_count)).to eq([ 1, 1, nil ])
+    expect(runs.first.attributes).to include("provider" => "anthropic", "model_name" => model, "input_tokens" => 120, "output_tokens" => 45)
+    expect(runs.map(&:attributes).to_json).not_to include("PRIVATE", "synthetic-key", "spec-password", auth, Providers::Anthropic::SYSTEM_PROMPT)
   ensure
     ActiveSupport::Notifications.unsubscribe(subscriber)
     Rails.logger.stop_broadcasting_to(capture)

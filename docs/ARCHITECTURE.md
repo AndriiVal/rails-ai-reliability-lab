@@ -2,10 +2,10 @@
 
 A conventional full Rails monolith runs on the Ubuntu host. PostgreSQL 17 runs
 alone in project-scoped Docker Compose, bound to loopback port 5433. Development
-and test databases have distinct names. No classification model or migration is
-needed: classification never persists input, results, request IDs or metadata.
+and test databases have distinct names. LlmRun stores metadata only; classification never persists inputs or results.
 
-GET /lab remains a static server-rendered page with Tailwind, Hotwire and importmap.
+GET /lab renders an interactive server-rendered dashboard with Tailwind and
+existing local assets. POST /lab/run works without JavaScript and requires CSRF.
 LabAuthentication is shared by LabController and the classification controller;
 it rejects absent/blank configuration and securely compares both credentials.
 GET /up remains the public Rails boot health check, without database diagnostics.
@@ -73,5 +73,27 @@ that the upstream grammar does not constrain (notably summary length).
 
 The API catches action errors locally before Rails 8.1 rescue_from instrumentation,
 which otherwise logs exception messages. Unexpected failures log class/UUID only.
-No application telemetry, persistence or new retry layer was added. See
+The adapter introduces no new retry layer. Metadata recording and terminal Rails
+events now belong to the shared application workflow, outside the SDK. See
 [Anthropic setup](ANTHROPIC_SETUP.md) for released-SDK evidence and limitations.
+
+ClassificationWorkflow is shared by UI/API. TicketClassifier validates input,
+scenario and opt-in configuration, then yields explicit provider/model/scenario
+metadata before execution. RunRecorder inserts started before any provider call;
+a completed outcome or controlled failure updates the same row conditionally
+from started. It never holds a transaction across retries or network calls.
+Only the winning terminal update publishes the allowlisted Rails event. API UUID
+creation remains at the HTTP boundary; the same UUID is passed to the workflow.
+
+LabController injects fake configuration and Providers::Fake directly, independent
+of global real settings. It filters all form parameters before controller logging,
+uses a bounded form parser, authenticates before CSRF verification and renders
+escaped result text directly after POST. History is one indexed query for the
+latest ten fake rows. Current input is not placed in session/flash/cookies/URLs.
+
+Initial recording failures fail closed before invocation; terminal write/event
+failures never retry the provider. Crash gaps can leave started rows or missing
+events. There is no outbox/recovery worker. The subscriber registers once at boot
+and implements Rails 8.1.4 emit(event), logging only six payload fields plus name.
+See [dashboard architecture and retention](DASHBOARD.md) for the exact schema,
+metadata allowlists, database model-name compatibility and failure limits.
