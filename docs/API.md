@@ -1,7 +1,8 @@
 # Synthetic ticket classification API
 
 POST /api/v1/classifications is a localhost-only demonstration using deterministic
-keyword matching. It performs no AI inference or external requests. Export your
+keyword matching by default. Anthropic inference is optional and disabled by
+default; see [Anthropic setup](ANTHROPIC_SETUP.md). Export your
 reviewed .env variables as described in README and start bin/dev first.
 
 ```bash
@@ -28,7 +29,9 @@ after stripping leading/trailing whitespace, including Unicode whitespace.
 Entirely blank Unicode text is rejected. Query parameters are ignored; put classification inputs only in JSON.
 Provider, model, api_key, url and every other unexpected JSON field are rejected.
 
-Scenario defaults to success when absent; null and unknown values are invalid.
+In fake mode, scenario defaults to success when absent; null and unknown values
+are invalid. In enabled Anthropic mode, scenario must be omitted: explicit
+"success", null and unknown scenarios all return 422 without SDK construction.
 All eight scenarios are supported:
 
 - success: HTTP 200, exactly 1 attempt.
@@ -93,9 +96,8 @@ Invalid fake output, HTTP 502:
 
 Missing/incorrect Basic Auth returns 401 unauthorized and a WWW-Authenticate
 challenge. Blank/missing server credentials always fail closed. A trusted server
-configuration selecting an unimplemented provider returns 503 provider_disabled
-with provider disabled and attempt_count 0; enabling the future real-provider flag
-does not install or activate a client. Unexpected programming bugs return a generic
+configuration selecting an unknown or incompletely enabled provider returns 503
+provider_disabled with provider disabled and attempt_count 0, without SDK requests. Unexpected programming bugs return a generic
 500 internal_error, with attempt_count null rather than an invented count.
 All error messages exclude input. Error mappings are:
 
@@ -130,3 +132,15 @@ This fixture offers predictable behavior and does not measure classification qua
 Run bin/ci or bundle exec rspec after preparing the dedicated test database.
 Tests deny unmocked HTTP and cover schema enforcement, privacy, no database writes,
 authentication, bounded parsing, Unicode lengths and exact invocation counts.
+
+## Optional Anthropic success metadata
+
+The same result/envelope applies in enabled real mode, with provider anthropic,
+model claude-haiku-4-5-20251001 and actual nonnegative SDK input/output tokens
+(or null if absent). Usage describes only the final successful attempt, not total
+billed usage across retries. Latency and attempt counts still come from Runner.
+Provider request IDs stay internal; the public request_id is always a fresh
+application UUID. Real summaries may reflect submitted text, so use synthetic
+input only. No raw prompt, completion or usage is persisted. Truncation, refusal,
+invalid content and schema violations produce non-retryable HTTP 502. See
+[setup and transport limitations](ANTHROPIC_SETUP.md); no live calls run in CI.

@@ -16,7 +16,7 @@ RSpec.describe Reliability::Runner do
       time.advance(durations.fetch(index, 0))
       outcome = outcomes.fetch(index)
       raise outcome if outcome.is_a?(Exception)
-      outcome
+      Providers::Response.new(body: outcome, model: Providers::Fake::MODEL)
     end
   end
 

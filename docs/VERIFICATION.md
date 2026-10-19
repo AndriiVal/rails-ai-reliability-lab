@@ -35,7 +35,7 @@ That baseline used only a deterministic Fake Provider, with no real provider
 SDK, outbound request, retry engine, persistence or telemetry.
 See [API usage](API.md) for the implemented contract and limitations.
 
-## Current reliability engine verification
+## Historical reliability engine verification (PR #3)
 
 The full local `bin/ci` gate passed with Ruby 4.0.6 and Rails 8.1.4:
 
@@ -62,9 +62,46 @@ future-date minimums, oversized decimals without conversion, exact remaining-bud
 cutoffs and malformed-value fallback. Both reported defects were reproduced before
 fixing the production code. All eight localhost scenario status/count checks pass.
 
+## Current Anthropic opt-in adapter verification (PR #4)
+
+On Ruby 4.0.6 / Rails 8.1.4 / PostgreSQL 17.11:
+
+- Official anthropic **1.80.0** installed into the local bundle; released gem API,
+  retry gates, Net::HTTP retry disabling and deadline propagation inspected.
+- Full RSpec: **336 examples, 0 failures** (98 more than the PR #3 baseline).
+- Focused adapter specs: **53 examples, 0 failures**, using the actual installed
+  SDK against WebMock, including transport deadline propagation and exact counts.
+- `bin/ci`: all seven steps passed; **336 examples, 0 failures**.
+- RuboCop: **54 files, no offenses**.
+- Brakeman: **0 errors, 0 security warnings**.
+- `bundle check`, Rails version, Zeitwerk, assets and `git diff --check` passed.
+- All eight localhost Fake Provider scenario status/count checks passed unchanged:
+  success 200/1, rate_limit_then_success 200/2, server_error_then_success 200/3,
+  always_rate_limited 429/3, timeout 504/3, malformed_json 502/1,
+  schema_violation 502/1 and auth_error 502/1.
+
+New coverage verifies all opt-in guards, missing usage as null, original JSON
+schema validation, final-response token metadata, request-ID filtering, scenario
+omission vs explicit null/success, endpoint/header isolation, redirect blocking,
+actual SDK HTTP/connection/timeout errors, one request per invocation and bounded
+Runner retries. The third SDK invocation receives a reduced 6.4-second budget in
+the virtual late-error test. Timeout options are also observed at the SDK transport
+boundary. No arbitrary sleeps or real requests are used in SDK specs.
+
+A sentinel test exposed Rails 8.1 rescue_from instrumentation logging unexpected
+exception messages. Action-local rescue now prevents that leak; successful output,
+upstream failures and unexpected SDK errors are checked for sensitive logging and
+no database writes. This does not add production observability.
+
+Default fake-only CI needs no key and denies unmocked HTTP. No live Anthropic call
+was made. Account access, model behavior, actual billing and network latency are
+unverified. See [Anthropic setup](ANTHROPIC_SETUP.md) for compatibility evidence,
+limits and separately authorized manual instructions. GitHub run results are
+recorded in the Draft PR description after completion.
+
 ## Diagnostic and scanning limits
 
-Unexpected controller errors receive a generic HTTP 500. The broad StandardError
+Unexpected action errors receive a generic HTTP 500. The action-level StandardError
 handler logs only the exception class and opaque request UUID; it intentionally
 omits exception messages, backtraces, causes and payloads to protect sensitive
 input. That information alone cannot identify the failing line or reconstruct

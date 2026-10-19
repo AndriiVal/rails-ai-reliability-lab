@@ -19,7 +19,7 @@ It reads only 16,385 bytes to enforce a 16,384-byte limit, independently of the
 Content-Length header; it does not use Rails' automatic body parser or wrapping.
 
 TicketClassifier normalizes and validates input, selects only the server-configured
-Fake Provider, and delegates execution and strict output validation to
+Fake or guarded Anthropic provider, and delegates execution and strict output validation to
 Reliability::Runner. The runner measures elapsed time with its injected
 monotonic clock. Expected application errors use TicketClassifier::Error
 with a controlled code and actual attempt count. ClassificationValidator::InvalidOutput
@@ -28,7 +28,7 @@ propagate from the service; the API returns a controlled 500 and logs only an
 error class and opaque request ID, never the exception message or raw input.
 
 Providers::Fake is stateless. It performs deterministic keyword matching and
-returns fixed synthetic summaries as JSON. ClassificationValidator strictly
+returns fixed synthetic JSON summaries in Providers::Response. ClassificationValidator strictly
 checks exactly four fields, enums, summary length/type and the actual boolean,
 then freezes the result and its values. Each call accepts ticket_text, scenario,
 attempt (one-based) and an explicit positive timeout_seconds budget. Sequences
@@ -55,5 +55,23 @@ No thread interruption or Timeout.timeout is used. See FAILURE_SCENARIOS.md for
 exact delay/date policies and cooperative execution limitations.
 
 LlmConfiguration provides fake/disabled defaults and strict boolean parsing.
-All unimplemented providers fail closed even if the future real-provider flag
-is enabled. No provider SDK, API key, outbound HTTP or telemetry is required.
+Unknown providers and incomplete Anthropic configuration fail closed before
+client construction. No API key or outbound HTTP is required in default fake mode.
+
+Providers::Response is a small immutable shared contract containing original JSON
+body, model, optional final-response tokens and an optional internal provider ID.
+Runner validates body with ClassificationValidator and returns the response
+alongside validated result/count/latency. TicketClassifier exposes only allowed
+metadata. SDK types remain inside Providers::Anthropic.
+
+The opt-in Anthropic adapter owns fixed v1 system instructions, server-owned
+schema/model, max_tokens 512, SDK timeout propagation and typed error translation.
+SDK retries and telemetry are disabled. A per-invocation SDK middleware pins the
+Messages URL, replaces outbound headers, blocks redirect sends and reads only
+a safe opaque request ID. Strict independent JSON validation still rejects values
+that the upstream grammar does not constrain (notably summary length).
+
+The API catches action errors locally before Rails 8.1 rescue_from instrumentation,
+which otherwise logs exception messages. Unexpected failures log class/UUID only.
+No application telemetry, persistence or new retry layer was added. See
+[Anthropic setup](ANTHROPIC_SETUP.md) for released-SDK evidence and limitations.

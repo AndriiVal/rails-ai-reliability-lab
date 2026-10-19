@@ -1,6 +1,6 @@
 # Rails AI Reliability Lab — Technical Specification
 
-**Status:** Foundation, the fake classification API and the bounded reliability engine are implemented, including all eight synthetic scenarios. Real provider adapters, telemetry, persistence and the interactive dashboard remain planned.
+**Status:** Foundation, the fake classification API and the bounded reliability engine are implemented, including all eight synthetic scenarios. The optional Anthropic adapter is implemented with mocked SDK verification; live account/model behavior remains unverified. Telemetry, persistence and the interactive dashboard remain planned.
 **Version:** 1.0 — 2026-10-19
 **Repository:** `AndriiVal/rails-ai-reliability-lab`
 **Owner:** Andrii Valchuk
@@ -494,7 +494,7 @@ Rails 8.1 also supports `config/ci.rb` / `bin/ci`. If using it, **edit its gener
 
 ## Product roadmap
 
-Foundation and the fake classification core are implemented. The remaining milestones describe planned functionality.
+Milestones 1–4 are implemented, with real-provider behavior verified through mocks only. Milestones 5–6 remain planned.
 
 ### Milestone 1 — Foundation
 
@@ -515,6 +515,8 @@ Foundation and the fake classification core are implemented. The remaining miles
 **Acceptance:** T05–T13 green; exact attempt counts; no nested retries; actual HTTP client timeouts budgeted; no unbounded sleeping or loops.
 
 ### Milestone 4 — Anthropic opt-in adapter
+
+**Implementation:** official SDK 1.80.0; allowlist `claude-haiku-4-5-20251001`; GA structured outputs; independent validation; zero SDK retries; Runner timeouts; opt-in and scenario guards. See [Anthropic setup](docs/ANTHROPIC_SETUP.md). No live request has been authorized or performed.
 
 **Scope:** official SDK, server-side allowlisted model, current structured output API, normalized usage + request ID, disabled-by-default guard, manual smoke-test instructions.
 
@@ -572,7 +574,7 @@ Concise ADRs: Rails monolith; sync vs job; single retry owner; no persisted raw 
 - [ ] Classification API matches success/error contracts.
 - [ ] Strict schema validation rejects malformed and incorrect output.
 - [ ] Retry attempts, `Retry-After` and deadlines work per spec.
-- [ ] Anthropic adapter is opt-in; SDK retries disabled and mocked in CI.
+- [x] Anthropic adapter is opt-in; SDK retries disabled and mocked in tests.
 - [ ] All request/auth/security and fault injection tests pass.
 - [ ] Metadata/events contain no sensitive message contents or secrets.
 - [ ] CI green for test, lint, Zeitwerk and Brakeman.

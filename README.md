@@ -3,9 +3,9 @@
 A Ruby/Rails engineering laboratory demonstrating reliable LLM integrations.
 The current release provides a private simulation page, a public health check,
 and a stateless ticket classification API with a deterministic Fake Provider.
-**No real LLM requests are performed.** A bounded reliability runner supports
-eight synthetic failure scenarios. Real providers and the interactive dashboard
-remain planned.
+**No real LLM requests occur by default.** A bounded reliability runner supports
+eight synthetic failure scenarios. An optional Anthropic adapter requires explicit
+server opt-in; persistence, telemetry and the interactive dashboard remain planned.
 
 Ruby **4.0.6**, Rails **8.1.4**, PostgreSQL **17**, Hotwire (Turbo/Stimulus),
 importmap, Tailwind CSS, RSpec, FactoryBot, WebMock, RuboCop and Brakeman.
@@ -84,8 +84,11 @@ Missing, blank or incorrect Basic Auth credentials return 401. Keep the lab loca
 Basic Auth does not encrypt credentials. CSRF protection remains enabled.
 `LLM_PROVIDER=fake` and `ENABLE_REAL_LLM=false` are defaults. Only explicit
 `true` (case-insensitive, trimmed) enables the future configuration flag;
-only the deterministic Fake Provider is implemented. Future Anthropic placeholders are unused.
-Use synthetic data only; no production secrets, deployments or real API keys.
+real usage also requires a nonblank personal key and an exact allowlisted model.
+Use synthetic data only; no production data or deployments. Keep keys private.
+See [optional Anthropic setup](docs/ANTHROPIC_SETUP.md) for the locked SDK, guards,
+timeout limits and separately authorized one-attempt manual smoke instructions.
+No live Anthropic request was made during implementation.
 
 See [architecture](docs/ARCHITECTURE.md), [decisions](docs/DECISIONS.md),
 [security](docs/SECURITY.md), and the broader [specification](SPEC.md).
@@ -109,4 +112,5 @@ allows at most three total provider invocations, an 8-second per-attempt budget
 and a 25-second overall deadline. It honors Retry-After and uses bounded backoff
 with jitter. No persistence occurs. Tests use virtual time; localhost scenarios
 with retries incur real waits. These cooperative budgets do not forcibly interrupt
-Ruby code and do not verify a real HTTP transport. No public hosting is approved.
+Ruby code. SDK transport propagation is covered by mocked tests; live latency
+and account access remain unverified. No public hosting is approved.
