@@ -29,13 +29,21 @@ Entirely blank Unicode text is rejected. Query parameters are ignored; put class
 Provider, model, api_key, url and every other unexpected JSON field are rejected.
 
 Scenario defaults to success when absent; null and unknown values are invalid.
-Supported scenarios:
+All eight scenarios are supported:
 
-- success: valid synthetic result, one invocation, HTTP 200.
-- malformed_json: deliberately malformed provider JSON, HTTP 502.
-- schema_violation: syntactically valid provider JSON with an invalid schema, HTTP 502.
+- success: HTTP 200, exactly 1 attempt.
+- rate_limit_then_success: HTTP 429 with Retry-After 1 second, then success;
+  HTTP 200, exactly 2 attempts.
+- server_error_then_success: HTTP 503, 503, success; HTTP 200, exactly 3 attempts.
+- always_rate_limited: repeated HTTP 429; HTTP 429, normally 3 attempts.
+- timeout: typed simulated transport timeouts; HTTP 504, normally 3 attempts.
+- malformed_json: malformed provider JSON; HTTP 502, exactly 1 attempt, no retry.
+- schema_violation: invalid schema; HTTP 502, exactly 1 attempt, no retry.
+- auth_error: upstream HTTP 401; HTTP 502, exactly 1 attempt, no retry.
 
-There are no retries, fault sequences or interactive scenario controls yet.
+Deadline exhaustion can stop a transient sequence earlier. Attempt counts always
+reflect actual calls. Detailed timing and curl examples are in
+[Failure scenarios](FAILURE_SCENARIOS.md). The browser page remains static.
 
 ## Responses
 
@@ -89,7 +97,25 @@ configuration selecting an unimplemented provider returns 503 provider_disabled
 with provider disabled and attempt_count 0; enabling the future real-provider flag
 does not install or activate a client. Unexpected programming bugs return a generic
 500 internal_error, with attempt_count null rather than an invented count.
-Every currently supported error is non-retryable; error messages contain no input.
+All error messages exclude input. Error mappings are:
+
+- 422 invalid_input, 401 unauthorized and 415 unsupported_media_type: non-retryable.
+- 503 provider_disabled: non-retryable configuration failure, zero attempts.
+- 502 provider_auth_error: non-retryable timely upstream 401/403, normally one attempt.
+- 502 invalid_provider_output: non-retryable parse/schema failure, one attempt.
+- 429 rate_limited: exhausted or budget-limited upstream 429, retryable true.
+- 503 provider_unavailable: exhausted transient HTTP/connection failures,
+  retryable true. Permanent upstream 400/404 also map here but retryable is false.
+- 504 provider_timeout: transport or overall timeout, retryable true. A typed HTTP
+  failure arriving at/after its attempt deadline is classified as a timeout
+  instead of its original HTTP status; any valid Retry-After minimum is retained.
+- 500 internal_error: non-retryable unexpected bug, attempt count null.
+
+`error.retryable` advises whether a separate future client request might be useful;
+it does not mean the server will make another attempt or promise success. Invalid
+provider output, authentication and configuration failures never retry. No fourth
+provider call occurs. Fake token counts remain null. Retry-After metadata is used
+internally and is not echoed as a raw provider header or response payload.
 
 ## Deterministic examples and limits
 

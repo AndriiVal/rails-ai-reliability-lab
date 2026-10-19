@@ -1,4 +1,5 @@
 require "rails_helper"
+require_relative "../support/reliability_time"
 
 RSpec.describe "Classification API", type: :request do
   let(:ticket) { "I was charged twice for my synthetic subscription." }
@@ -16,6 +17,14 @@ RSpec.describe "Classification API", type: :request do
     %w[BASIC_AUTH_USERNAME BASIC_AUTH_PASSWORD].each { |key| ENV.delete(key) }
     ENV.update(saved)
     Rails.application.config.x.llm = configuration
+  end
+
+  before do
+    time = ReliabilityTestTime.new
+    policy = Reliability::RetryPolicy.new(random: double(rand: 1.0), wall_clock: time.method(:wall_time))
+    allow(Reliability::Runner).to receive(:new).and_wrap_original do |method, **args|
+      method.call(**args, clock: time, sleeper: time.method(:sleep), policy: policy)
+    end
   end
 
   def classify(payload = nil, request_headers: headers, **attributes)
@@ -84,7 +93,7 @@ RSpec.describe "Classification API", type: :request do
     end
   end
 
-  [ "success?", "timeout", nil, 1 ].each do |scenario|
+  [ "success?", "not_a_scenario", nil, 1 ].each do |scenario|
     it "rejects unsupported scenario #{scenario.inspect}" do
       classify(ticket_text: ticket, scenario: scenario)
       expect_error(422, "invalid_input", 0)
@@ -154,7 +163,11 @@ RSpec.describe "Classification API", type: :request do
     subscriber = ActiveSupport::Notifications.subscribe("start_processing.action_controller") { |event| payloads << event.payload[:params] }
     classify(ticket_text: "SENSITIVE-TICKET-SENTINEL", extra: "SENSITIVE-SECRET-SENTINEL")
     post "/api/v1/classifications", params: '{"ticket_text":"SENSITIVE-BROKEN-SENTINEL",', headers: headers
-    expect(payloads.size).to eq(2)
+    Providers::Fake::SCENARIOS.each do |scenario|
+      classify(ticket_text: "SENSITIVE-SYNTHETIC-SENTINEL", scenario: scenario)
+      expect(response.body).not_to include("SENSITIVE")
+    end
+    expect(payloads.size).to eq(10)
     expect(payloads.map(&:keys)).to all(match_array([ :controller, :action ]))
     expect(response.body).not_to include("SENSITIVE")
     expect(log.string).not_to include("SENSITIVE", auth, "api-spec-password")
@@ -170,6 +183,7 @@ RSpec.describe "Classification API", type: :request do
     end
     classify
     expect(response).to have_http_status(:ok)
+    Providers::Fake::SCENARIOS.each { |scenario| classify(ticket_text: ticket, scenario: scenario) }
     expect(writes).to be_empty
     expect(WebMock::RequestRegistry.instance.requested_signatures.hash).to be_empty
   ensure
@@ -182,5 +196,32 @@ RSpec.describe "Classification API", type: :request do
     classify
     expect_error(500, "internal_error", nil)
     expect(response.body).not_to include("PRIVATE-BUG-SENTINEL", "NoMethodError", ticket)
+  end
+  {
+    "success" => [ 200, 1, nil, false ],
+    "rate_limit_then_success" => [ 200, 2, nil, false ],
+    "server_error_then_success" => [ 200, 3, nil, false ],
+    "always_rate_limited" => [ 429, 3, "rate_limited", true ],
+    "timeout" => [ 504, 3, "provider_timeout", true ],
+    "auth_error" => [ 502, 1, "provider_auth_error", false ],
+    "malformed_json" => [ 502, 1, "invalid_provider_output", false ],
+    "schema_violation" => [ 502, 1, "invalid_provider_output", false ]
+  }.each do |scenario, (status, attempts, code, retryable)|
+    it "runs #{scenario} with actual invocation counts and canonical responses" do
+      expect_any_instance_of(Providers::Fake).to receive(:classify).exactly(attempts).times.and_call_original
+      classify(ticket_text: ticket, scenario: scenario)
+      expect(response).to have_http_status(status)
+      expect(body["meta"]["attempt_count"]).to eq(attempts)
+      if code
+        expect(body.keys.sort).to eq(%w[error meta request_id])
+        expect(body["error"]).to include("code" => code, "retryable" => retryable)
+        expect(response.body).not_to include(ticket, "Provider failure", "retry_after")
+      else
+        expect(body.keys.sort).to eq(%w[meta request_id result])
+        expect(body["result"].keys.sort).to eq(%w[category priority requires_human_review summary])
+        expect(body["meta"]).to include("provider" => "fake", "input_tokens" => nil, "output_tokens" => nil)
+        expect(body["meta"]["latency_ms"]).to eq(scenario == "rate_limit_then_success" ? 1000 : (scenario == "server_error_then_success" ? 600 : 0))
+      end
+    end
   end
 end

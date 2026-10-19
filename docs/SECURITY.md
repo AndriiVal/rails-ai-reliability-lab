@@ -44,8 +44,9 @@ bugs log only an error class and a fresh request UUID for investigation. Query
 strings are not classification inputs; do not place ticket text or secrets there.
 
 All fake outputs pass strict application-owned schema checks. Invalid output is
-non-retryable and maps to 502. No database writes, telemetry, SDK calls, sleeps,
-retries, instruction execution or HTML rendering of input/results are performed.
+non-retryable and maps to 502. No database writes, telemetry, SDK calls,
+instruction execution or HTML rendering of input/results are performed. The
+runner alone performs bounded retry delays; the Fake Provider never sleeps.
 
 The broad controller StandardError handler deliberately prevents unexpected
 exception messages and backtraces from reaching responses or ordinary error logs.
@@ -57,3 +58,19 @@ the exception cause or reproduce an incident, and handled errors may not reach
 normal unhandled-exception reporters. Reproduce bugs locally with synthetic data;
 do not enable raw-body logging to compensate. No new error-reporting or telemetry
 system is included. This remains a local demonstration, not production monitoring.
+
+Retries apply only to typed transient provider failures. Timely upstream 401/403,
+invalid provider output, bad input and unknown Ruby exceptions do not retry.
+Error messages are controlled strings; neither raw Retry-After values nor
+provider error objects are logged. Fixed synthetic summaries never echo input.
+At most three provider calls and cooperative deadline checks limit server work,
+but a synchronous process cannot forcibly stop arbitrary blocking code precisely
+on time. Real network transport deadlines have not been tested; they require a
+future provider adapter. Do not mistake these simulations for production readiness.
+
+A typed provider failure arriving at/after its attempt deadline is classified as
+transport timeout before evaluating its status or Retry-After metadata. Only the
+remaining attempt/deadline budgets can permit another invocation. Valid long
+Retry-After minimums never cause a shorter fallback retry. Oversized positive
+decimal encodings fail closed as unfulfillable waits without float conversion
+or sleeping. These remain cooperative checks, not forced Ruby interruption.

@@ -16,7 +16,7 @@ The Foundation baseline passed its local verification on 2026-10-19:
 
 These counts describe the Foundation baseline, not the current classification API.
 
-## Current classification API verification (PR #2)
+## Historical classification API verification (PR #2)
 
 The [successful feature CI run](https://github.com/AndriiVal/rails-ai-reliability-lab/actions/runs/39248235555)
 verified commit `0b8eaded7692aca4f6afec9a46bb225cbf0f124a`:
@@ -31,9 +31,36 @@ The same gate passed locally. Localhost HTTP smoke checks verified 200 success,
 401 authentication, 422 invalid input, 502 invalid fake output and 503 disabled
 provider responses. The static `/lab` page and public `/up` endpoint still pass.
 
-The API uses only a deterministic Fake Provider. No real provider SDK, outbound
-provider request, retry engine, classification persistence or telemetry exists.
+That baseline used only a deterministic Fake Provider, with no real provider
+SDK, outbound request, retry engine, persistence or telemetry.
 See [API usage](API.md) for the implemented contract and limitations.
+
+## Current reliability engine verification
+
+The full local `bin/ci` gate passed with Ruby 4.0.6 and Rails 8.1.4:
+
+- RSpec: **238 examples, 0 failures**, retaining Foundation and API regressions.
+- RuboCop: **49 files, no offenses**.
+- Brakeman: **0 errors, 0 security warnings**.
+- Dependencies, dedicated PostgreSQL test database, Zeitwerk and Tailwind/assets pass.
+- Localhost smoke requests for all eight scenarios verified statuses and actual
+  counts: success 200/1, rate_limit_then_success 200/2,
+  server_error_then_success 200/3, always_rate_limited 429/3, timeout 504/3,
+  malformed_json 502/1, schema_violation 502/1 and auth_error 502/1.
+
+Timing tests inject virtual clocks, sleeper and jitter without real retry waits.
+They cover budget exhaustion, late output, Retry-After dates and equal-budget
+cutoffs, early wakeups, configuration validation, concurrency and terminal output
+validation. Real smoke calls use the production sleeper. These are fake provider
+simulations, not verified real HTTP transport timeouts. No provider SDK, database
+persistence or telemetry is added. See FAILURE_SCENARIOS.md for exact limits.
+
+The focused correctness follow-up passes 104 runner/policy examples. Regression
+coverage includes late typed HTTP failures at/after per-attempt deadlines,
+preserved Retry-After minimums during timeout normalization, long numeric and
+future-date minimums, oversized decimals without conversion, exact remaining-budget
+cutoffs and malformed-value fallback. Both reported defects were reproduced before
+fixing the production code. All eight localhost scenario status/count checks pass.
 
 ## Diagnostic and scanning limits
 

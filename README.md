@@ -3,8 +3,9 @@
 A Ruby/Rails engineering laboratory demonstrating reliable LLM integrations.
 The current release provides a private simulation page, a public health check,
 and a stateless ticket classification API with a deterministic Fake Provider.
-**No real LLM requests are performed.** Retries, real providers and the interactive
-failure simulator are planned features.
+**No real LLM requests are performed.** A bounded reliability runner supports
+eight synthetic failure scenarios. Real providers and the interactive dashboard
+remain planned.
 
 Ruby **4.0.6**, Rails **8.1.4**, PostgreSQL **17**, Hotwire (Turbo/Stimulus),
 importmap, Tailwind CSS, RSpec, FactoryBot, WebMock, RuboCop and Brakeman.
@@ -103,5 +104,9 @@ curl --user "$BASIC_AUTH_USERNAME:$BASIC_AUTH_PASSWORD" \
   http://127.0.0.1:3000/api/v1/classifications
 ```
 
-Only `success`, `malformed_json` and `schema_violation` are implemented. Each
-valid request invokes the Fake Provider once; no retry or persistence occurs.
+All eight [failure scenarios](docs/FAILURE_SCENARIOS.md) are implemented. The runner
+allows at most three total provider invocations, an 8-second per-attempt budget
+and a 25-second overall deadline. It honors Retry-After and uses bounded backoff
+with jitter. No persistence occurs. Tests use virtual time; localhost scenarios
+with retries incur real waits. These cooperative budgets do not forcibly interrupt
+Ruby code and do not verify a real HTTP transport. No public hosting is approved.

@@ -3,7 +3,7 @@
 - Pin Ruby 4.0.6 locally; require Rails 8.1.4 within the 8.1 series and commit
   the lockfile. Never modify global Ruby configuration or upgrade silently.
 - Use a Rails monolith with host-run Rails, local PostgreSQL-only Compose and
-  standard MVC. Implement only the Fake Provider; defer jobs, retries and metadata models.
+  standard MVC. Implement only the Fake Provider; defer jobs and metadata models.
 - Keep the lab local and authenticated; leave only the standard health route public.
 - Use strict environment parsing, fake defaults and no real-provider SDK.
 - Use RSpec, FactoryBot and WebMock. Block unmocked HTTP and fail empty runs.
@@ -23,9 +23,32 @@
   parser diagnostics or raw payloads entering logs. Unsupported media types use 415.
 - Use typed expected failures and an immutable validated result. Unexpected bugs
   retain a generic 500 path and safe error-class/request-ID logging.
-- Report exactly one attempt for invoked fake scenarios, zero before invocation,
+- Report actual provider invocations, zero before invocation,
   and null for an unexpected internal error whose attempt count is unknown.
   Token counts are null; latency uses measured monotonic elapsed time.
 - Synthetic keyword precedence is billing, technical, account, other. Fixed
   summaries never reproduce ticket text. This is a deterministic fixture,
-  not AI inference. Only success, malformed_json and schema_violation exist.
+  not AI inference. All eight documented failure scenarios are deterministic.
+
+- Reliability::Runner is the only retry owner. Classifier input validation happens
+  before it starts; invalid outputs and unknown Ruby exceptions are never retried.
+- Use constructor-injected limits, monotonic clock, sleeper and randomness. No
+  environment flags control tests or retry settings. Total invocations are capped
+  at three even with configured policies; fake state comes from a call's attempt.
+- Pass timeout_seconds to every provider invocation. Check late returns and the
+  overall deadline cooperatively; do not interrupt arbitrary synchronous Ruby.
+- Use equal jitter in [50%, 100%] of capped exponential delay. Valid Retry-After
+  bypasses jitter and the 2-second normal cap; wait >= remaining budget terminates
+  immediately, preserving the last failure code and actual attempt count.
+- Parse positive delta-seconds or HTTP dates with a separate injected wall clock.
+  Valid long minimum waits never fall back to a shorter delay. Positive decimal
+  strings over 128 bytes use an unfulfillable comparison bound without conversion
+  or sleeping, conservatively including padded/small encodings. Malformed,
+  nonfinite/nonpositive numeric values and past dates use normal backoff. HTTP-date
+  precision is seconds, but subtract the unrounded current time without flooring.
+- Apply the per-attempt deadline to typed provider failures as well as returns.
+  A late HTTP error becomes a transport timeout but retains Retry-After minimums;
+  overall expiration remains terminal. Timely permanent errors still
+  do not retry.
+- Client retry advice remains distinct from the server's exhausted retry budget.
+  No telemetry, new dependency, provider SDK or data model is added.

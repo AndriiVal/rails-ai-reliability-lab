@@ -1,13 +1,15 @@
 require "rails_helper"
+require_relative "../support/reliability_time"
 
 RSpec.describe TicketClassifier do
   let(:provider) { Providers::Fake.new }
-  subject(:classifier) { described_class.new(configuration: { provider: "fake", enable_real_llm: false }, provider: provider) }
+  let(:time) { ReliabilityTestTime.new }
+  let(:runner) { Reliability::Runner.new(clock: time, sleeper: time.method(:sleep)) }
+  subject(:classifier) { described_class.new(configuration: { provider: "fake", enable_real_llm: false }, provider: provider, runner: runner) }
 
   it "normalizes input, invokes the provider once and validates its output" do
-    expect(provider).to receive(:classify).with(ticket_text: "Synthetic billing ticket", scenario: "success").once.and_call_original
+    expect(provider).to receive(:classify).with(ticket_text: "Synthetic billing ticket", scenario: "success", attempt: 1, timeout_seconds: 8).once.and_wrap_original { |method, **args| time.advance(0.025); method.call(**args) }
     expect(ClassificationValidator).to receive(:call).once.and_call_original
-    expect(Process).to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC).and_return(1.0, 1.025)
     outcome = classifier.call(ticket_text: "　 Synthetic billing ticket　 ")
     expect(outcome[:meta]).to eq(provider: "fake", model: "fake-v1", attempt_count: 1, latency_ms: 25, input_tokens: nil, output_tokens: nil)
   end
