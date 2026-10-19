@@ -39,8 +39,9 @@ Reliability::Runner alone owns retries. All counters, start times and deadlines
 are local to one call. RetryPolicy holds validated constructor settings: 1–3 total
 attempts, positive finite timeout limits and finite nonnegative backoff values.
 Default limits are 3 calls, 8 seconds per attempt and 25 seconds overall. The
-runner checks time before every call, caps its budget to remaining time, rejects
-late success and checks output-validation completion against the overall deadline.
+runner checks time before every call, caps its budget to remaining time, classifies
+late returns and typed failures as transport timeouts, and checks output-validation
+completion against the overall deadline.
 Known provider failures carry safe status/kind/Retry-After metadata, not raw bodies.
 Unknown Ruby exceptions propagate to the existing safe API 500 boundary.
 

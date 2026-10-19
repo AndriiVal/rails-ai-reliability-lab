@@ -39,7 +39,7 @@ See [API usage](API.md) for the implemented contract and limitations.
 
 The full local `bin/ci` gate passed with Ruby 4.0.6 and Rails 8.1.4:
 
-- RSpec: **215 examples, 0 failures**, retaining Foundation and API regressions.
+- RSpec: **238 examples, 0 failures**, retaining Foundation and API regressions.
 - RuboCop: **49 files, no offenses**.
 - Brakeman: **0 errors, 0 security warnings**.
 - Dependencies, dedicated PostgreSQL test database, Zeitwerk and Tailwind/assets pass.
@@ -54,6 +54,13 @@ cutoffs, early wakeups, configuration validation, concurrency and terminal outpu
 validation. Real smoke calls use the production sleeper. These are fake provider
 simulations, not verified real HTTP transport timeouts. No provider SDK, database
 persistence or telemetry is added. See FAILURE_SCENARIOS.md for exact limits.
+
+The focused correctness follow-up passes 104 runner/policy examples. Regression
+coverage includes late typed HTTP failures at/after per-attempt deadlines,
+preserved Retry-After minimums during timeout normalization, long numeric and
+future-date minimums, oversized decimals without conversion, exact remaining-budget
+cutoffs and malformed-value fallback. Both reported defects were reproduced before
+fixing the production code. All eight localhost scenario status/count checks pass.
 
 ## Diagnostic and scanning limits
 

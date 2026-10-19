@@ -48,8 +48,8 @@ RSpec.describe Reliability::RetryPolicy do
     expect(policy.delay(Providers::Error.new(status: 429, retry_after: date), retry_index: 0)).to eq(1.75)
   end
 
-  [ nil, "", "invalid", "-1", "0", -1, 0, Float::INFINITY, Float::NAN, "1e99", "86401", "9" * 129, "Wed, 01 Jan 2020 00:00:00 GMT" ].each do |value|
-    it "falls back for invalid, past or unreasonable Retry-After #{value.inspect}" do
+  [ nil, "", "invalid", "-1", "0", -1, 0, Float::INFINITY, Float::NAN, "1e99", "0" * 129, "Wed, 01 Jan 2020 00:00:00 GMT" ].each do |value|
+    it "falls back for invalid or past Retry-After #{value.inspect}" do
       expect(policy.delay(Providers::Error.new(status: 429, retry_after: value), retry_index: 0)).to eq(0.2)
     end
   end
@@ -65,5 +65,22 @@ RSpec.describe Reliability::RetryPolicy do
     expect(zero.delay(Providers::Error.new(status: 503), retry_index: 0)).to eq(0)
     allow(random).to receive(:rand).and_return(2.0)
     expect { policy.delay(Providers::Error.new(status: 503), retry_index: 0) }.to raise_error(ArgumentError)
+  end
+  context "follow-up regressions" do
+    [ "86401", "999999999" ].each do |value|
+      it "preserves valid long numeric Retry-After #{value}" do
+        expect(random).not_to receive(:rand)
+        expect(policy.delay(Providers::Error.new(status: 429, retry_after: value), retry_index: 0)).to eq(value.to_f)
+      end
+    end
+
+    it "preserves a valid HTTP-date two days in the future" do
+      expect(policy.delay(Providers::Error.new(status: 429, retry_after: (time.wall_time + 172_800).httpdate), retry_index: 0)).to eq(172_800)
+    end
+
+    it "represents an oversized positive decimal without overflowing or using jitter" do
+      expect(random).not_to receive(:rand)
+      expect(policy.delay(Providers::Error.new(status: 429, retry_after: "9" * 10_000), retry_index: 0)).to eq(Float::INFINITY)
+    end
   end
 end

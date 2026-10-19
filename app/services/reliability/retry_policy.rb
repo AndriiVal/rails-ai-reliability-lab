@@ -44,15 +44,22 @@ module Reliability
     end
 
     def retry_after_seconds(value)
-      return unless value.is_a?(String) || value.is_a?(Numeric)
-      return if value.to_s.bytesize > 128
+      return value if finite_number?(value) && value.positive?
+      return unless value.is_a?(String)
 
-      seconds = if value.is_a?(Numeric) || value.match?(/\A(?:\d+(?:\.\d+)?|\.\d+)\z/)
+      seconds = if value.match?(/\A(?:\d+(?:\.\d+)?|\.\d+)\z/)
+        return unless value.match?(/[1-9]/)
+        # A valid oversized decimal must block retries, not fall back to a
+        # shorter delay. The runner rejects this bound without sleeping.
+        return Float::INFINITY if value.bytesize > 128
+
         Float(value)
       else
+        return if value.bytesize > 128
+
         Time.httpdate(value) - @wall_clock.call
       end
-      seconds if finite_number?(seconds) && seconds.positive? && seconds <= 86_400
+      seconds if finite_number?(seconds) && seconds.positive?
     rescue ArgumentError, TypeError, RangeError
       nil
     end

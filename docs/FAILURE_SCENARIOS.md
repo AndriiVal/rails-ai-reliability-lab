@@ -46,17 +46,22 @@ and 2-second non-header cap. Constructors validate positive finite timeout limit
 not JSON parameters. The runner counts calls only when invoking the provider.
 
 Retry HTTP 408/409/429/5xx and typed connection/transport-timeout failures, subject
-to both limits. Never retry HTTP 400/401/403/404, invalid input/configuration,
+to both limits. Never retry timely HTTP 400/401/403/404 responses, invalid input/configuration,
 malformed/schema-invalid output or arbitrary StandardError. The HTTP controller
 maps normalized outcomes; it never decides to retry. There is only one retry layer.
 
 For zero-based retry index i, capped delay is min(0.2 * 2**i, 2.0). Equal jitter
 selects [0.5 * capped_delay, capped_delay] from injected randomness. A valid
 Retry-After bypasses that calculation, including the cap. Positive numeric
-seconds (including decimal values) and valid HTTP dates are accepted up to
-86,400 seconds. Malformed, nonpositive, nonfinite, past-date, >one-day or >128-byte
-metadata falls back to normal backoff. This bound defines what is unreasonable;
-a valid delay below that bound is never shortened to fit the request deadline.
+seconds (including decimal values) and valid HTTP dates have no one-day cutoff.
+A valid minimum wait that cannot fit the remaining budget terminates immediately;
+it never falls back to a shorter delay. Positive decimal strings over 128 bytes
+are conservatively represented as an unfulfillable wait (an infinite comparison
+bound), without numeric conversion. The runner rejects that bound before sleeping;
+it is not an actual infinite sleep or an overflow. Even an oversized positive
+encoding of a small number is treated conservatively this way. Malformed,
+nonpositive, nonfinite numeric values and past dates use normal backoff. Invalid
+non-decimal metadata over 128 bytes is rejected without attempting date parsing.
 
 HTTP dates have whole-second precision. The policy subtracts its separate current
 wall-clock Time without rounding down the resulting fractional delay. Monotonic
@@ -71,8 +76,13 @@ remaining minimum; oversleeping cannot start another call after the deadline.
 ## Timeout contract and limits
 
 Each provider invocation receives timeout_seconds=min(8, remaining_budget), or
-the corresponding configured per-attempt limit. A return at/after its attempt
-budget is treated as a transport timeout; a return or validation completion
+the corresponding configured per-attempt limit. Both successful returns and
+typed provider failures at/after the attempt deadline are treated as transport
+timeouts. Timeout classification takes precedence over a late HTTP status,
+including 401 or 429, while retaining any valid Retry-After minimum. It can
+therefore retry as a timeout if both budgets allow, even when the original late
+HTTP status would have been permanent. A timely failure retains its normal HTTP
+classification. A return or validation completion
 at/after the overall deadline is terminal. No Timeout.timeout, asynchronous
 interruption or forced cancellation is used. A blocking provider or sleeper can
 return late: these checks reject that result and prevent further calls but

@@ -187,4 +187,83 @@ RSpec.describe Reliability::Runner do
     results << shared_runner.call(provider: shared_provider, ticket_text: "Synthetic ticket", scenario: "server_error_then_success")
     expect(results.map { |r| r[:attempt_count] }).to eq([ 3 ] * 5)
   end
+  context "follow-up regressions" do
+    context "with a single allowed invocation" do
+      let(:policy) { Reliability::RetryPolicy.new(max_attempts: 1, random: double(rand: 1.0)) }
+
+      [ [ 429, 9, :provider_timeout ], [ 401, 9, :provider_timeout ],
+        [ 503, 8, :provider_timeout ], [ 503, 7.999, :provider_unavailable ] ].each do |status, duration, code|
+        it "classifies HTTP #{status} raised after #{duration} seconds" do
+          sequence(Providers::Error.new(status: status), durations: [ duration ])
+          expect_failure(code, 1, true)
+          expect(time.sleeps).to be_empty
+        end
+      end
+    end
+
+    [ [ 429, 9 ], [ 401, 9 ], [ 503, 8 ] ].each do |status, duration|
+      it "retries late HTTP #{status} as a timeout when no header minimum blocks it" do
+        sequence(Providers::Error.new(status: status), valid, durations: [ duration, 0 ])
+        expect(execute).to include(attempt_count: 2, latency_ms: ((duration + 0.2) * 1000).round)
+        expect(time.sleeps.length).to eq(1)
+        expect(time.sleeps.first).to be_within(1e-9).of(0.2)
+        expect(calls.length).to eq(2)
+      end
+    end
+
+    it "preserves an excessive valid Retry-After when normalizing a late 429 to timeout" do
+      sequence(Providers::Error.new(status: 429, retry_after: "86401"), valid, durations: [ 9, 0 ])
+      expect_failure(:provider_timeout, 1, true)
+      expect(time.sleeps).to be_empty
+      expect(time.call).to eq(9)
+    end
+
+    it "honors a fitting header minimum when normalizing a late 503 to timeout" do
+      sequence(Providers::Error.new(status: 503, retry_after: "1"), valid, durations: [ 9, 0 ])
+      expect(execute).to include(attempt_count: 2, latency_ms: 10_000)
+      expect(time.sleeps).to eq([ 1.0 ])
+    end
+
+    it "preserves a timely HTTP 503 and honors its Retry-After before retrying" do
+      sequence(Providers::Error.new(status: 503, retry_after: "1"), valid, durations: [ 7.999, 0 ])
+      expect(execute).to include(attempt_count: 2, latency_ms: 8999)
+      expect(time.sleeps.length).to eq(1)
+      expect(time.sleeps.first).to be_within(1e-9).of(1)
+    end
+
+    it "bounds repeated late errors by three invocations and the remaining overall budget" do
+      sequence(*Array.new(3) { Providers::Error.new(status: 503) }, durations: [ 9, 9, 6.4 ])
+      expect_failure(:provider_timeout, 3, true)
+      expect(time.call).to be_within(1e-9).of(25)
+      expect(calls.map { |call| call[:timeout_seconds] }.first(2)).to eq([ 8, 8 ])
+      expect(calls.last[:timeout_seconds]).to be_within(1e-9).of(6.4)
+    end
+
+    [ "86401", "999999999", "9" * 129, "9" * 10_000, "3600", "25" ].each do |header|
+      it "terminates without sleep or early retry for a positive #{header.bytesize}-byte Retry-After" do
+        sequence(Providers::Error.new(status: 429, retry_after: header), valid)
+        expect_failure(:rate_limited, 1, true)
+        expect(time.sleeps).to be_empty
+        expect(time.call).to eq(0)
+      end
+    end
+
+    it "treats a valid HTTP-date two days ahead as an unfulfillable minimum wait" do
+      sequence(Providers::Error.new(status: 429, retry_after: (time.wall_time + 172_800).httpdate), valid)
+      expect_failure(:rate_limited, 1, true)
+      expect(time.sleeps).to be_empty
+    end
+
+    it "compares Retry-After against remaining rather than initial budget" do
+      sequence(Providers::Error.new(status: 429, retry_after: "20"), valid, durations: [ 6, 0 ])
+      expect_failure(:rate_limited, 1, true)
+      expect(time.sleeps).to be_empty
+    end
+
+    it "still retries malformed Retry-After using ordinary bounded backoff" do
+      sequence(Providers::Error.new(status: 429, retry_after: "not-a-delay"), valid)
+      expect(execute[:attempt_count]).to eq(2)
+      expect(time.sleeps).to eq([ 0.2 ])
+    end
+  end
 end

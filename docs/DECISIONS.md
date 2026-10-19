@@ -41,8 +41,14 @@
   bypasses jitter and the 2-second normal cap; wait >= remaining budget terminates
   immediately, preserving the last failure code and actual attempt count.
 - Parse positive delta-seconds or HTTP dates with a separate injected wall clock.
-  Reject values above one day, malformed/nonfinite/nonpositive values, dates in
-  the past and metadata above 128 bytes; use normal backoff instead. HTTP-date
+  Valid long minimum waits never fall back to a shorter delay. Positive decimal
+  strings over 128 bytes use an unfulfillable comparison bound without conversion
+  or sleeping, conservatively including padded/small encodings. Malformed,
+  nonfinite/nonpositive numeric values and past dates use normal backoff. HTTP-date
   precision is seconds, but subtract the unrounded current time without flooring.
+- Apply the per-attempt deadline to typed provider failures as well as returns.
+  A late HTTP error becomes a transport timeout but retains Retry-After minimums;
+  overall expiration remains terminal. Timely permanent errors still
+  do not retry.
 - Client retry advice remains distinct from the server's exhausted retry budget.
   No telemetry, new dependency, provider SDK or data model is added.

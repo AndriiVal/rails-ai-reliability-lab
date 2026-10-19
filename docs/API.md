@@ -101,12 +101,14 @@ All error messages exclude input. Error mappings are:
 
 - 422 invalid_input, 401 unauthorized and 415 unsupported_media_type: non-retryable.
 - 503 provider_disabled: non-retryable configuration failure, zero attempts.
-- 502 provider_auth_error: non-retryable upstream 401/403, normally one attempt.
+- 502 provider_auth_error: non-retryable timely upstream 401/403, normally one attempt.
 - 502 invalid_provider_output: non-retryable parse/schema failure, one attempt.
 - 429 rate_limited: exhausted or budget-limited upstream 429, retryable true.
 - 503 provider_unavailable: exhausted transient HTTP/connection failures,
   retryable true. Permanent upstream 400/404 also map here but retryable is false.
-- 504 provider_timeout: transport or overall timeout, retryable true.
+- 504 provider_timeout: transport or overall timeout, retryable true. A typed HTTP
+  failure arriving at/after its attempt deadline is classified as a timeout
+  instead of its original HTTP status; any valid Retry-After minimum is retained.
 - 500 internal_error: non-retryable unexpected bug, attempt count null.
 
 `error.retryable` advises whether a separate future client request might be useful;

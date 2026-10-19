@@ -34,7 +34,9 @@ module Reliability
           code = @clock.call >= deadline ? :provider_timeout : :invalid_provider_output
           fail_with(code, attempts, started, code == :provider_timeout)
         rescue Providers::Error => error
-          fail_with(:provider_timeout, attempts, started, true) if @clock.call >= deadline
+          now = @clock.call
+          fail_with(:provider_timeout, attempts, started, true) if now >= deadline
+          error = Providers::TransportTimeout.new(retry_after: error.retry_after) if now >= attempt_deadline
           retryable = @policy.retryable?(error)
           unless retryable && attempts < @policy.max_attempts
             fail_with(@policy.code(error), attempts, started, retryable)
