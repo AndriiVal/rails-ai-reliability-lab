@@ -176,15 +176,20 @@ RSpec.describe "Classification API", type: :request do
     Rails.logger.stop_broadcasting_to(capture)
   end
 
-  it "performs no database writes and no outbound HTTP" do
+  it "writes exactly one metadata row per run and no unrelated data or outbound HTTP" do
     writes = []
     subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |event|
       writes << event.payload[:sql] if event.payload[:sql].match?(/\A\s*(?:INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|TRUNCATE)\b/i)
     end
+    before_count = LlmRun.count
     classify
     expect(response).to have_http_status(:ok)
+    expect(LlmRun.find_by!(request_id: body["request_id"]).status).to eq("succeeded")
     Providers::Fake::SCENARIOS.each { |scenario| classify(ticket_text: ticket, scenario: scenario) }
-    expect(writes).to be_empty
+    expect(LlmRun.count - before_count).to eq(9)
+    expect(writes.length).to eq(18)
+    expect(writes).to all(match(/\A(?:INSERT INTO|UPDATE) "llm_runs"/))
+    expect(LlmRun.all.map(&:attributes).to_json).not_to include(ticket, "api-spec-password", "Synthetic billing request requires review.")
     expect(WebMock::RequestRegistry.instance.requested_signatures.hash).to be_empty
   ensure
     ActiveSupport::Notifications.unsubscribe(subscriber)

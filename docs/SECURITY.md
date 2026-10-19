@@ -46,8 +46,8 @@ bugs log only an error class and a fresh request UUID for investigation. Query
 strings are not classification inputs; do not place ticket text or secrets there.
 
 All fake outputs pass strict application-owned schema checks. Invalid output is
-non-retryable and maps to 502. No database writes, telemetry, instruction
-execution or HTML rendering of input/results are performed. Only enabled real
+non-retryable and maps to 502. Only metadata is written/emitted; no instruction
+execution occurs. Browser input/results are escaped by default. Only enabled real
 mode makes SDK calls; Fake never uses the SDK. The
 runner alone performs bounded retry delays; the Fake Provider never sleeps.
 
@@ -59,8 +59,8 @@ TicketClassifier::Error failures retain their specific controlled status mapping
 This limits diagnosis: the log cannot identify the failing source line, recover
 the exception cause or reproduce an incident, and handled errors may not reach
 normal unhandled-exception reporters. Reproduce bugs locally with synthetic data;
-do not enable raw-body logging to compensate. No new error-reporting or telemetry
-system is included. This remains a local demonstration, not production monitoring.
+do not enable raw-body logging to compensate. Only allowlisted local terminal metadata events are included; no external
+error-reporting system is installed. This remains a local demonstration, not production monitoring.
 
 Retries apply only to typed transient provider failures. Timely upstream 401/403,
 invalid provider output, bad input and unknown Ruby exceptions do not retry.
@@ -90,8 +90,31 @@ Rails 8.1 logs handled exception messages through rescue_from instrumentation.
 The classification action catches expected and unexpected failures before that
 subscriber, retaining controlled error codes and class/UUID-only diagnostics.
 Sentinel tests cover ticket, key, prompt, completion, error body and auth privacy
-for both successful and failing SDK paths, and assert no database writes.
+for both successful and failing SDK paths, and assert metadata-only writes.
 Operators must also keep proxy/HTTP instrumentation from capturing bodies.
 Retries may incur additional billing even after a timeout; final-response tokens
 do not represent all billed usage. Live account access, quota and latency remain
 unverified. No public deployment or live automated testing is approved.
+
+The interactive dashboard is always Fake-only, enforced by explicit server-owned
+configuration/provider injection even when all global Anthropic flags are enabled.
+GET never executes a classification. Browser POST authenticates before CSRF,
+requires a valid session authenticity token, reads a bounded form and filters all
+body fields before controller logs. It rejects configuration overrides. Current
+form input can appear only in its private no-store response; it is never put in
+session/flash/cookies/URLs. Summaries and ticket text are escaped without raw/html_safe.
+
+LlmRun has only explicit scalar metadata fields, no content or JSON payload
+columns. UUID/provider/model/scenario/error/identifier and numeric values are
+validated. Only a status=started conditional update may complete a run; a race
+cannot overwrite a terminal result or generate duplicate terminal events.
+The six-field Rails event contains no prompt, ticket, summary, key, auth, response
+body or user identity. The minimal subscriber ignores event context/tags and
+logs only the allowlist. Tests cover HTML script injection, metadata/events/log
+sentinels, real CSRF tokens, concurrency and no extra calls after failures.
+
+History requires authentication and shows only the latest ten fake rows, without
+full UUIDs. Initial DB failure prevents execution; a terminal failure can leave a
+started row or missing event. No outbox or background recovery is promised.
+Use the manual retention guidance in [DASHBOARD.md](DASHBOARD.md); keep local DB
+and logs private. Do not enable content capture in proxies or new subscribers.

@@ -26,7 +26,7 @@ module Api
         payload = read_payload
         return render_error(:invalid_input) unless payload.is_a?(Hash) && (payload.keys - %w[ticket_text scenario]).empty?
 
-        outcome = TicketClassifier.new.call(ticket_text: payload["ticket_text"], **payload.slice("scenario").symbolize_keys)
+        outcome = ClassificationWorkflow.new.call(request_id: @classification_request_id, ticket_text: payload["ticket_text"], **payload.slice("scenario").symbolize_keys)
         render json: { request_id: @classification_request_id, **outcome }
       rescue TicketClassifier::Error => error
         classification_error(error)

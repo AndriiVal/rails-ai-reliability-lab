@@ -1,11 +1,13 @@
 # Rails AI Reliability Lab
 
 A Ruby/Rails engineering laboratory demonstrating reliable LLM integrations.
-The current release provides a private simulation page, a public health check,
+The current release provides an interactive private simulation dashboard, a public health check,
 and a stateless ticket classification API with a deterministic Fake Provider.
 **No real LLM requests occur by default.** A bounded reliability runner supports
 eight synthetic failure scenarios. An optional Anthropic adapter requires explicit
-server opt-in; persistence, telemetry and the interactive dashboard remain planned.
+server opt-in. Accepted runs record metadata only in local PostgreSQL and emit
+allowlisted Rails events. The dashboard is always Fake-only, even under real
+provider configuration.
 
 Ruby **4.0.6**, Rails **8.1.4**, PostgreSQL **17**, Hotwire (Turbo/Stimulus),
 importmap, Tailwind CSS, RSpec, FactoryBot, WebMock, RuboCop and Brakeman.
@@ -110,7 +112,25 @@ curl --user "$BASIC_AUTH_USERNAME:$BASIC_AUTH_PASSWORD" \
 All eight [failure scenarios](docs/FAILURE_SCENARIOS.md) are implemented. The runner
 allows at most three total provider invocations, an 8-second per-attempt budget
 and a 25-second overall deadline. It honors Retry-After and uses bounded backoff
-with jitter. No persistence occurs. Tests use virtual time; localhost scenarios
+with jitter. Only metadata is recorded. Tests use virtual time; localhost scenarios
 with retries incur real waits. These cooperative budgets do not forcibly interrupt
 Ruby code. SDK transport propagation is covered by mocked tests; live latency
 and account access remain unverified. No public hosting is approved.
+
+## Interactive dashboard and metadata
+
+Open `/lab` after the normal database setup. Submit an invented ticket, choose
+any of the eight scenarios and inspect the classification/error, actual attempts
+and measured latency. It works without JavaScript. Basic Auth and browser CSRF
+verification are both required; the API remains independently available to curl.
+
+The latest ten Fake-only run records show metadata, never ticket text or summaries.
+The dashboard cannot activate Anthropic. Accepted API runs share the same recorder
+and correlate their public UUID with the metadata row/event. Invalid inputs and
+disabled configuration are excluded from recording. There is no public history.
+
+See [dashboard, screenshots and telemetry contract](docs/DASHBOARD.md) for the
+schema, event allowlist, recording-failure behavior and manual 30-day retention
+recommendation. No scheduled deletion, background worker or exporter is installed.
+
+![Synthetic desktop dashboard](docs/images/dashboard-desktop.png)

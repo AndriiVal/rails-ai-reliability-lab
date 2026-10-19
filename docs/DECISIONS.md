@@ -3,7 +3,7 @@
 - Pin Ruby 4.0.6 locally; require Rails 8.1.4 within the 8.1 series and commit
   the lockfile. Never modify global Ruby configuration or upgrade silently.
 - Use a Rails monolith with host-run Rails, local PostgreSQL-only Compose and
-  standard MVC. Keep Fake as default; defer jobs and metadata models.
+  standard MVC. Keep Fake as default; defer background jobs.
 - Keep the lab local and authenticated; leave only the standard health route public.
 - Use strict environment parsing and fake defaults; guard the optional real SDK.
 - Use RSpec, FactoryBot and WebMock. Block unmocked HTTP and fail empty runs.
@@ -67,9 +67,29 @@
   shared Response and independently validate it. The API grammar omits maxLength;
   the application enforces 240 characters. Bound output to 512 tokens.
 - Tokens describe the final successful response only; null is preferable to
-  invented usage. Safe request IDs stay internal. No persistence or billing totals.
+  invented usage. Safe provider request IDs stay internal; only allowlisted metadata is persisted,
+  never raw content or billing totals.
 - Distinguish scenario omission from explicit null/success in real mode.
 - Catch API action errors before Rails rescue_from can log SDK error messages.
   Keep class/UUID-only diagnostics; no new observability system.
 - Exercise the installed SDK using WebMock, no live calls or API secrets in CI.
   Manual smoke requires separate approval and uses a one-attempt Runner.
+
+## Interactive simulation and safe metadata
+
+- Keep the dashboard Fake-only through explicit configuration/provider injection;
+  do not mutate global settings or forward browser provider controls.
+- Share ClassificationWorkflow between UI/API. Use a metadata-only pre-execution
+  block after validation/guards so invalid or disabled requests do not create runs.
+- Create one started row per accepted invocation, not per retry. Record controlled
+  failure counts/latency faithfully; unknown exceptions use null metrics.
+- Use a conditional status=started update as the terminal transition gate. Validate
+  explicit metadata first; avoid database transactions over calls or retry sleeps.
+- Fail closed if initial recording fails. Preserve execution results if terminal
+  storage/events fail, without repeating potentially billable calls. No outbox.
+- Emit six allowlisted fields through Rails.event. The released Rails 8.1.4 calls
+  emit(event) positionally. Keep one boot subscriber and no third-party exporter.
+- Use standard forms, native labels/focus states and escaped HTML. No Stimulus
+  controller is needed for this workflow. Keep full CSRF plus Basic Auth.
+- Show ten indexed, authenticated Fake-only history rows, never full UUIDs or
+  content. Recommend manual 30-day metadata retention; no scheduled cleanup.
