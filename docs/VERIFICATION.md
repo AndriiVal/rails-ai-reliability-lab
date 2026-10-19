@@ -17,11 +17,17 @@ Both the original Foundation source and this clean release candidate passed:
 
 Application logic, dependencies, configuration and all RSpec tests are unchanged.
 The dashboard status sentence was updated to describe the current release.
-No provider SDK, real API request, classification service or retry engine exists.
-Those capabilities remain planned in SPEC.md.
+No real provider SDK, real API request or retry engine exists. The deterministic
+classification API is documented in API.md. The 28-example results above record
+the Foundation baseline; current API validation is recorded by the feature CI run.
 
 The original implementation has a successful historical GitHub Actions run.
 This candidate has been tested locally; a newly published repository requires
 its own GitHub Actions run before claiming remote CI success. Secret scanning
 used credential-pattern and file-policy checks plus manual review; those checks
 do not prove that every possible secret has been detected.
+
+Current classification feature validation: 126 examples, 0 failures. The full
+bin/ci gate passes, including Zeitwerk, assets, 39 RuboCop files without offenses,
+and Brakeman without warnings. Localhost HTTP smoke checks verified 200, 401,
+422, 502 and 503. The static Foundation page and public health check still pass.

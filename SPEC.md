@@ -1,6 +1,6 @@
 # Rails AI Reliability Lab — Technical Specification
 
-**Status:** Product design and roadmap. Only the Foundation is implemented; classification, provider adapters, reliability policies, telemetry and audit scenarios below are planned.
+**Status:** Product design and roadmap. Foundation and the fake classification API are implemented. Only success, malformed_json and schema_violation scenarios exist. Real providers, retries, telemetry and the interactive failure simulator below remain planned.
 **Version:** 1.0 — 2026-10-19
 **Repository:** `AndriiVal/rails-ai-reliability-lab`
 **Owner:** Andrii Valchuk
@@ -494,7 +494,7 @@ Rails 8.1 also supports `config/ci.rb` / `bin/ci`. If using it, **edit its gener
 
 ## Product roadmap
 
-The following milestones distinguish implemented Foundation behavior from planned functionality.
+Foundation and the fake classification core are implemented. The remaining milestones describe planned functionality.
 
 ### Milestone 1 — Foundation
 

@@ -1,10 +1,10 @@
 # Rails AI Reliability Lab
 
 A Ruby/Rails engineering laboratory demonstrating reliable LLM integrations.
-The current release provides the application foundation: a private **simulation
-environment** page and a public health check. **There is no working LLM
-integration and no real LLM request in this release.** Classification and
-failure simulation are planned features.
+The current release provides a private simulation page, a public health check,
+and a stateless ticket classification API with a deterministic Fake Provider.
+**No real LLM requests are performed.** Retries, real providers and the interactive
+failure simulator are planned features.
 
 Ruby **4.0.6**, Rails **8.1.4**, PostgreSQL **17**, Hotwire (Turbo/Stimulus),
 importmap, Tailwind CSS, RSpec, FactoryBot, WebMock, RuboCop and Brakeman.
@@ -83,10 +83,25 @@ Missing, blank or incorrect Basic Auth credentials return 401. Keep the lab loca
 Basic Auth does not encrypt credentials. CSRF protection remains enabled.
 `LLM_PROVIDER=fake` and `ENABLE_REAL_LLM=false` are defaults. Only explicit
 `true` (case-insensitive, trimmed) enables the future configuration flag;
-no provider implementation exists. Future Anthropic placeholders are unused.
+only the deterministic Fake Provider is implemented. Future Anthropic placeholders are unused.
 Use synthetic data only; no production secrets, deployments or real API keys.
 
 See [architecture](docs/ARCHITECTURE.md), [decisions](docs/DECISIONS.md),
 [security](docs/SECURITY.md), and the broader [specification](SPEC.md).
 
 MIT License, copyright 2026 Andrii Valchuk. See [LICENSE](LICENSE).
+
+## Classification API
+
+See [API usage](docs/API.md) for curl examples, exact input/output constraints,
+supported synthetic scenarios, status codes and privacy behavior.
+
+```bash
+curl --user "$BASIC_AUTH_USERNAME:$BASIC_AUTH_PASSWORD" \
+  --header 'Content-Type: application/json' \
+  --data '{"ticket_text":"I was charged twice for my synthetic subscription.","scenario":"success"}' \
+  http://127.0.0.1:3000/api/v1/classifications
+```
+
+Only `success`, `malformed_json` and `schema_violation` are implemented. Each
+valid request invokes the Fake Provider once; no retry or persistence occurs.
