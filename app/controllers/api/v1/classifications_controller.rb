@@ -20,17 +20,20 @@ module Api
         internal_error: [ 500, "The classification request could not be completed." ]
       }.freeze
 
-      rescue_from StandardError, with: :unexpected_error
-      rescue_from TicketClassifier::Error, with: :classification_error
-
       def create
         return render_error(:unsupported_media_type) unless request.media_type == "application/json"
 
         payload = read_payload
         return render_error(:invalid_input) unless payload.is_a?(Hash) && (payload.keys - %w[ticket_text scenario]).empty?
 
-        outcome = TicketClassifier.new.call(ticket_text: payload["ticket_text"], scenario: payload.fetch("scenario", "success"))
+        outcome = TicketClassifier.new.call(ticket_text: payload["ticket_text"], **payload.slice("scenario").symbolize_keys)
         render json: { request_id: @classification_request_id, **outcome }
+      rescue TicketClassifier::Error => error
+        classification_error(error)
+      rescue StandardError => error
+        # Rails 8.1 rescue_from instrumentation logs exception messages before
+        # handlers run. Catch within the action to keep SDK payloads private.
+        unexpected_error(error)
       end
 
       private
@@ -71,11 +74,17 @@ module Api
         render json: error_payload(code, attempts, retryable: retryable), status: ERRORS.fetch(code).first
       end
 
+      def public_provider
+        configuration = Rails.application.config.x.llm
+        return "fake" if configuration[:provider] == "fake"
+        LlmConfiguration.anthropic_enabled?(configuration) ? "anthropic" : "disabled"
+      end
+
       def error_payload(code, attempts, retryable: false)
         {
           request_id: @classification_request_id,
           error: { code: code, message: ERRORS.fetch(code).last, retryable: retryable },
-          meta: { provider: Rails.application.config.x.llm.fetch(:provider) == "fake" ? "fake" : "disabled", attempt_count: code == :internal_error ? nil : attempts }
+          meta: { provider: public_provider, attempt_count: code == :internal_error ? nil : attempts }
         }
       end
     end

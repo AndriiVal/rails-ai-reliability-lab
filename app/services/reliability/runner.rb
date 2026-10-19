@@ -27,9 +27,9 @@ module Reliability
           output = provider.classify(ticket_text: ticket_text, scenario: scenario, attempt: attempts, timeout_seconds: timeout)
           raise Providers::TransportTimeout if @clock.call >= attempt_deadline
 
-          result = ClassificationValidator.call(output)
+          result = ClassificationValidator.call(output.body)
           fail_with(:provider_timeout, attempts, started, true) if @clock.call >= deadline
-          return { result: result, attempt_count: attempts, latency_ms: elapsed_ms(started) }
+          return { result: result, response: output, attempt_count: attempts, latency_ms: elapsed_ms(started) }
         rescue ClassificationValidator::InvalidOutput
           code = @clock.call >= deadline ? :provider_timeout : :invalid_provider_output
           fail_with(code, attempts, started, code == :provider_timeout)

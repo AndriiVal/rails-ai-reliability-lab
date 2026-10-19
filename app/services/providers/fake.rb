@@ -28,8 +28,8 @@ module Providers
       when "auth_error"
         raise Error.new(status: 401)
       end
-      return "{invalid" if scenario == "malformed_json"
-      return JSON.generate(category: "unsupported") if scenario == "schema_violation"
+      return Response.new(body: "{invalid", model: MODEL) if scenario == "malformed_json"
+      return Response.new(body: JSON.generate(category: "unsupported"), model: MODEL) if scenario == "schema_violation"
 
       category = case ticket_text.downcase
       when /charg|bill|refund|subscription/ then "billing"
@@ -38,7 +38,7 @@ module Providers
       else "other"
       end
       priority, summary, review = RESULTS.fetch(category)
-      JSON.generate(category: category, priority: priority, summary: summary, requires_human_review: review)
+      Response.new(body: JSON.generate(category: category, priority: priority, summary: summary, requires_human_review: review), model: MODEL)
     end
   end
 end

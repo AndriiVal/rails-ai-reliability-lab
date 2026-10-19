@@ -1,7 +1,8 @@
-# Foundation security
+# Security and privacy
 
 Local demonstration only; no production deployment is approved. Basic Auth needs
-TLS for use beyond localhost. Do not enter client data or real provider keys.
+TLS for use beyond localhost. Do not enter client data. Personal provider keys
+belong only in a private local environment for explicitly approved experiments.
 The lab fails closed if either configured credential is missing or blank.
 Rails secure comparison handles both credential checks; CSRF protection remains.
 The public health check only reports Rails boot health, not database health.
@@ -16,9 +17,10 @@ and temporary files are ignored. .env.example contains local dummy values only.
 Review shell assignments before explicitly sourcing a trusted .env file.
 Do not commit keys, source employer code or use corporate services.
 
-Only a deterministic Fake Provider exists; no network LLM clients are installed. Configuration defaults to fake/disabled and never needs an
-API key. WebMock prevents unmocked HTTP in tests. Future real requests need a
-separate approved implementation and explicit owner opt-in.
+Configuration defaults to fake/disabled and never needs an API key. The official
+Anthropic SDK is optional at runtime and requires all opt-in guards before client
+construction. WebMock prevents unmocked HTTP in tests; no live request has been
+made. See [Anthropic setup](ANTHROPIC_SETUP.md) for exact guards and manual policy.
 
 Compose exposes PostgreSQL only on 127.0.0.1:5433 with project-owned persistent
 storage. Do not remove volumes, change Docker socket permissions or connect to
@@ -44,11 +46,12 @@ bugs log only an error class and a fresh request UUID for investigation. Query
 strings are not classification inputs; do not place ticket text or secrets there.
 
 All fake outputs pass strict application-owned schema checks. Invalid output is
-non-retryable and maps to 502. No database writes, telemetry, SDK calls,
-instruction execution or HTML rendering of input/results are performed. The
+non-retryable and maps to 502. No database writes, telemetry, instruction
+execution or HTML rendering of input/results are performed. Only enabled real
+mode makes SDK calls; Fake never uses the SDK. The
 runner alone performs bounded retry delays; the Fake Provider never sleeps.
 
-The broad controller StandardError handler deliberately prevents unexpected
+The broad action-level StandardError handler deliberately prevents unexpected
 exception messages and backtraces from reaching responses or ordinary error logs.
 It logs the exception class and opaque request UUID only; internal-error attempt
 counts are null because the number of invocations may be unknown. Expected
@@ -62,11 +65,12 @@ system is included. This remains a local demonstration, not production monitorin
 Retries apply only to typed transient provider failures. Timely upstream 401/403,
 invalid provider output, bad input and unknown Ruby exceptions do not retry.
 Error messages are controlled strings; neither raw Retry-After values nor
-provider error objects are logged. Fixed synthetic summaries never echo input.
+provider error objects are logged. Fixed fake summaries never echo input; real
+summaries may reflect the synthetic ticket and are returned only to the caller.
 At most three provider calls and cooperative deadline checks limit server work,
 but a synchronous process cannot forcibly stop arbitrary blocking code precisely
-on time. Real network transport deadlines have not been tested; they require a
-future provider adapter. Do not mistake these simulations for production readiness.
+on time. SDK transport timeout propagation is verified through mocks, not live
+network latency. Do not mistake these tests for production readiness.
 
 A typed provider failure arriving at/after its attempt deadline is classified as
 transport timeout before evaluating its status or Retry-After metadata. Only the
@@ -74,3 +78,20 @@ remaining attempt/deadline budgets can permit another invocation. Valid long
 Retry-After minimums never cause a shorter fallback retry. Oversized positive
 decimal encodings fail closed as unfulfillable waits without float conversion
 or sleeping. These remain cooperative checks, not forced Ruby interruption.
+
+The adapter pins the official API URL, removes ambient/incoming credentials and
+custom headers, and blocks redirects before a second send. It explicitly disables
+SDK telemetry and retries. Prompt/schema/model/max_tokens are server-owned; real
+mode rejects every explicit scenario. No tools or browsing are enabled. A fixed
+prompt is a data/instruction boundary, not a guarantee against semantic injection.
+SDK response text is parsed independently, never executed.
+
+Rails 8.1 logs handled exception messages through rescue_from instrumentation.
+The classification action catches expected and unexpected failures before that
+subscriber, retaining controlled error codes and class/UUID-only diagnostics.
+Sentinel tests cover ticket, key, prompt, completion, error body and auth privacy
+for both successful and failing SDK paths, and assert no database writes.
+Operators must also keep proxy/HTTP instrumentation from capturing bodies.
+Retries may incur additional billing even after a timeout; final-response tokens
+do not represent all billed usage. Live account access, quota and latency remain
+unverified. No public deployment or live automated testing is approved.

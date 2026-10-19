@@ -10,29 +10,42 @@ class TicketClassifier
     end
   end
 
-  def initialize(configuration: Rails.application.config.x.llm, provider: Providers::Fake.new, runner: Reliability::Runner.new)
+  def initialize(configuration: Rails.application.config.x.llm, provider: nil, runner: Reliability::Runner.new)
     @configuration = configuration
     @provider = provider
     @runner = runner
   end
 
-  def call(ticket_text:, scenario: "success")
+  def call(ticket_text:, scenario: :omitted)
     unless ticket_text.is_a?(String) && ticket_text.encoding == Encoding::UTF_8 && ticket_text.valid_encoding?
       raise Error.new(:invalid_input)
     end
     normalized = ticket_text.gsub(/\A[[:space:]]+|[[:space:]]+\z/, "")
-    unless normalized.present? && (10..3000).cover?(normalized.length) && scenario.is_a?(String) && Providers::Fake::SCENARIOS.include?(scenario)
+    unless normalized.present? && (10..3000).cover?(normalized.length)
       raise Error.new(:invalid_input)
     end
-    raise Error.new(:provider_disabled) unless @configuration.fetch(:provider) == "fake"
+    mode = @configuration.fetch(:provider)
+    if mode == "fake"
+      scenario = "success" if scenario == :omitted
+      raise Error.new(:invalid_input) unless scenario.is_a?(String) && Providers::Fake::SCENARIOS.include?(scenario)
+      provider = @provider || Providers::Fake.new
+    elsif mode == "anthropic"
+      raise Error.new(:provider_disabled) unless LlmConfiguration.anthropic_enabled?(@configuration)
+      raise Error.new(:invalid_input) unless scenario == :omitted
+      scenario = nil
+      provider = @provider || Providers::Anthropic.new(configuration: @configuration)
+    else
+      raise Error.new(:provider_disabled)
+    end
 
-    outcome = @runner.call(provider: @provider, ticket_text: normalized, scenario: scenario)
+    outcome = @runner.call(provider: provider, ticket_text: normalized, scenario: scenario)
+    response = outcome.fetch(:response)
     {
       result: outcome.fetch(:result),
       meta: {
-        provider: "fake", model: Providers::Fake::MODEL, attempt_count: outcome.fetch(:attempt_count),
+        provider: mode, model: response.model, attempt_count: outcome.fetch(:attempt_count),
         latency_ms: outcome.fetch(:latency_ms),
-        input_tokens: nil, output_tokens: nil
+        input_tokens: response.input_tokens, output_tokens: response.output_tokens
       }
     }
   rescue Reliability::Runner::Failure => failure
