@@ -46,3 +46,14 @@ strings are not classification inputs; do not place ticket text or secrets there
 All fake outputs pass strict application-owned schema checks. Invalid output is
 non-retryable and maps to 502. No database writes, telemetry, SDK calls, sleeps,
 retries, instruction execution or HTML rendering of input/results are performed.
+
+The broad controller StandardError handler deliberately prevents unexpected
+exception messages and backtraces from reaching responses or ordinary error logs.
+It logs the exception class and opaque request UUID only; internal-error attempt
+counts are null because the number of invocations may be unknown. Expected
+TicketClassifier::Error failures retain their specific controlled status mapping.
+This limits diagnosis: the log cannot identify the failing source line, recover
+the exception cause or reproduce an incident, and handled errors may not reach
+normal unhandled-exception reporters. Reproduce bugs locally with synthetic data;
+do not enable raw-body logging to compensate. No new error-reporting or telemetry
+system is included. This remains a local demonstration, not production monitoring.
