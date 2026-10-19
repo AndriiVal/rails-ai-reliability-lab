@@ -13,6 +13,10 @@ module Api
         unsupported_media_type: [ 415, "Content-Type must be application/json." ],
         invalid_provider_output: [ 502, "The provider returned an invalid classification." ],
         provider_disabled: [ 503, "The configured provider is disabled." ],
+        provider_auth_error: [ 502, "The upstream provider rejected authentication." ],
+        rate_limited: [ 429, "The upstream provider is temporarily rate limited." ],
+        provider_unavailable: [ 503, "The upstream provider could not complete the request." ],
+        provider_timeout: [ 504, "The provider request exceeded its time budget." ],
         internal_error: [ 500, "The classification request could not be completed." ]
       }.freeze
 
@@ -55,7 +59,7 @@ module Api
       end
 
       def classification_error(error)
-        render_error(error.code, error.attempt_count)
+        render_error(error.code, error.attempt_count, retryable: error.retryable)
       end
 
       def unexpected_error(error)
@@ -63,14 +67,14 @@ module Api
         render_error(:internal_error)
       end
 
-      def render_error(code, attempts = 0)
-        render json: error_payload(code, attempts), status: ERRORS.fetch(code).first
+      def render_error(code, attempts = 0, retryable: false)
+        render json: error_payload(code, attempts, retryable: retryable), status: ERRORS.fetch(code).first
       end
 
-      def error_payload(code, attempts)
+      def error_payload(code, attempts, retryable: false)
         {
           request_id: @classification_request_id,
-          error: { code: code, message: ERRORS.fetch(code).last, retryable: false },
+          error: { code: code, message: ERRORS.fetch(code).last, retryable: retryable },
           meta: { provider: Rails.application.config.x.llm.fetch(:provider) == "fake" ? "fake" : "disabled", attempt_count: code == :internal_error ? nil : attempts }
         }
       end

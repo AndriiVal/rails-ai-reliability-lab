@@ -1,6 +1,6 @@
 # Rails AI Reliability Lab — Technical Specification
 
-**Status:** Product design and roadmap. Foundation and the fake classification API are implemented. Only success, malformed_json and schema_violation scenarios exist. Real providers, retries, telemetry and the interactive failure simulator below remain planned.
+**Status:** Foundation, the fake classification API and the bounded reliability engine are implemented, including all eight synthetic scenarios. Real provider adapters, telemetry, persistence and the interactive dashboard remain planned.
 **Version:** 1.0 — 2026-10-19
 **Repository:** `AndriiVal/rails-ai-reliability-lab`
 **Owner:** Andrii Valchuk
