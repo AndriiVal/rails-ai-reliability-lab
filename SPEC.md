@@ -1,7 +1,7 @@
 # Rails AI Reliability Lab — Technical Specification
 
-**Status:** Foundation, the fake classification API and the bounded reliability engine are implemented, including all eight synthetic scenarios. The optional Anthropic adapter is implemented with mocked SDK verification; live account/model behavior remains unverified. The interactive Fake-only dashboard, metadata-only PostgreSQL recording and native Rails terminal events are implemented. Final sample audit/release review remains planned.
-**Version:** 1.0 — 2026-10-19
+**Status:** Foundation, the fake classification API and the bounded reliability engine are implemented, including all eight synthetic scenarios. The optional Anthropic adapter is implemented with mocked SDK verification; live account/model behavior remains unverified. The interactive Fake-only dashboard, metadata-only PostgreSQL recording and native Rails terminal events are implemented. Milestone 6 documentation, simulated audit and local verification are complete; GitHub Actions passed; owner review remains pending in the Draft PR.
+**Version:** 1.0 — 2026-10-20
 **Repository:** `AndriiVal/rails-ai-reliability-lab`
 **Owner:** Andrii Valchuk
 **Target platform:** Ruby **4.0.6**, Ruby on Rails **8.1.4**, PostgreSQL
@@ -78,19 +78,20 @@ The project must demonstrate engineering judgment, not merely an LLM API call. A
 ## System boundaries and sequence
 
 ```mermaid
-flowchart LR
-  UI["/lab UI (Hotwire)"] --> CTRL["Rails controller"]
-  API["POST /api/v1/classifications"] --> CTRL
-  CTRL --> SRV["TicketClassifier"]
-  SRV --> RUN["Reliability::Runner"]
-  RUN --> FAKE["Providers::Fake"]
-  RUN --> CLAUDE["Providers::Anthropic (opt-in)"]
-  RUN --> VAL["ClassificationValidator"]
-  VAL --> RESULT["ClassificationResult"]
-  RUN --> OBS["RunRecorder + Rails.event"]
-  OBS --> DB[("PostgreSQL: llm_runs metadata")]
-  RESULT --> CTRL
+flowchart TD
+  UI["/lab: Basic Auth + CSRF, Fake-only"] --> WF[ClassificationWorkflow]
+  API["JSON API: Basic Auth"] --> WF
+  WF --> TC[TicketClassifier: input/configuration guards]
+  TC --> RUN["Reliability::Runner + RetryPolicy"]
+  RUN --> FAKE[Providers::Fake]
+  RUN --> CLAUDE[Providers::Anthropic: API opt-in only]
+  RUN --> VAL[ClassificationValidator]
+  WF --> OBS[RunRecorder]
+  OBS --> DB[(PostgreSQL llm_runs metadata)]
+  OBS --> EVT[Rails structured terminal event]
 ```
+
+See [actual architecture and trust boundaries](docs/ARCHITECTURE.md).
 
 The HTTP controller never calls an SDK directly. Business logic never handles SDK-specific exceptions directly. Only provider adapters know SDK-specific response types. UI and API share the same orchestration service.
 
@@ -462,7 +463,7 @@ rails-ai-reliability-lab/
 | T21 | CI uses Ruby 4.0.x, Rails 8.1.x, PostgreSQL; all checks pass |
 | T22 | A real-provider smoke test is excluded from ordinary CI |
 
-**Baseline:** these are target check classes across the MVP, with multiple spec cases for schema edge conditions. Current run metadata/event and browser tests cover Milestone 5; the final sample audit/release review remains Milestone 6. No arbitrary coverage-percent target in MVP; focus on critical paths and deterministic failures.
+**Baseline:** these are target check classes across the MVP, with multiple spec cases for schema edge conditions. Current run metadata/event and browser tests cover Milestone 5; Milestone 6 adds the evidence-backed simulated audit and source-code readiness review. No arbitrary coverage-percent target in MVP; focus on critical paths and deterministic failures.
 
 ## Continuous integration and local quality gates
 
@@ -494,7 +495,7 @@ Rails 8.1 also supports `config/ci.rb` / `bin/ci`. If using it, **edit its gener
 
 ## Product roadmap
 
-Milestones 1–5 are implemented, with real-provider behavior verified through mocks only. Milestone 6 remains planned.
+Milestones 1–5 are implemented, with real-provider behavior verified through mocks only. Milestone 6 documentation and local checks are complete; hosted CI passed and owner review remains pending in the Draft PR.
 
 ### Milestone 1 — Foundation
 
@@ -531,6 +532,8 @@ Milestones 1–5 are implemented, with real-provider behavior verified through m
 **Acceptance:** eight scenarios selectable, attempt count and failure explanation visible, T16–T19 green; run records never contain ticket content or credentials.
 
 ### Milestone 6 — Showcase & release review
+
+**Implementation:** Portfolio README and actual desktop/mobile visuals reviewed; architecture/trust-boundary diagram, five explicitly simulated evidence-backed findings, ADR rationale, reviewer walkthrough and source-code readiness report delivered. Local `bin/ci` passed 396 examples / 0 failures, 65 RuboCop files and zero Brakeman warnings. All eight localhost API scenarios verified. Fresh source snapshot passed using existing dependencies/database. Dependency advisory scan unavailable; pristine-machine installation, full mobile interaction and live Anthropic remain unverified. Video deferred with storyboard. See [verification](docs/VERIFICATION.md), [audit](docs/AUDIT_REPORT.md), [demo](docs/DEMO_GUIDE.md) and [readiness](docs/RELEASE_READINESS.md). Final Actions/independent review evidence belongs to the Draft PR; no release, tag, deployment or merge is authorized.
 
 **Scope:** README, architecture docs, simulated audit report, limitations, dependency/security scan, one concise demo video/GIF if time permits.
 
@@ -570,19 +573,19 @@ Concise ADRs: Rails monolith; sync vs job; single retry owner; no persisted raw 
 
 ## Definition of Done — entire MVP
 
-- [ ] Rails 8.1.x and Ruby 4.0.x versions verified and pinned.
-- [ ] All required gems install and app boots on Ubuntu; documented build steps.
-- [ ] Fake Provider runs without network/API credentials.
-- [ ] Classification API matches success/error contracts.
-- [ ] Strict schema validation rejects malformed and incorrect output.
-- [ ] Retry attempts, `Retry-After` and deadlines work per spec.
+- [x] Rails 8.1.x and Ruby 4.0.x versions verified and pinned.
+- [ ] All required gems install from scratch on fresh Ubuntu (existing bundle/boot verified; fresh download not repeated).
+- [x] Fake Provider runs without network/API credentials.
+- [x] Classification API matches success/error contracts.
+- [x] Strict schema validation rejects malformed and incorrect output.
+- [x] Retry attempts, `Retry-After` and deadlines work per spec.
 - [x] Anthropic adapter is opt-in; SDK retries disabled and mocked in tests.
-- [ ] All request/auth/security and fault injection tests pass.
-- [ ] Metadata/events contain no sensitive message contents or secrets.
-- [ ] CI green for test, lint, Zeitwerk and Brakeman.
-- [ ] `/lab` displays simulated scenario explanations and works on mobile.
-- [ ] README / architecture / security / sample audit report accurately reflect real implementation.
-- [ ] Final code review reports zero unresolved high/critical findings.
+- [x] All request/auth/security and fault injection tests pass.
+- [x] Metadata/events contain no sensitive message contents or secrets.
+- [x] CI green for test, lint, Zeitwerk and Brakeman (PR #6 run linked in verification).
+- [ ] `/lab` full mobile interaction verified (scenario rendering/tests and cropped mobile screenshot verified).
+- [x] README / architecture / security / sample audit report accurately reflect real implementation.
+- [x] Final read-only independent source/documentation review reports no actionable findings (scope/limits in verification).
 - [ ] Owner reviews PRs and manually merges; no production/customer access.
 
 ## Risks and open implementation decisions

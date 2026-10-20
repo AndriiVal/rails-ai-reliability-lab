@@ -157,5 +157,5 @@ records. No content deletion is needed because content was never recorded.
 Rotate local logs under your existing local policy. Keep the database and logs
 private. These controls are a compact demonstration, not public-service traffic
 management, production monitoring, audit-grade storage or a billing ledger.
-Milestone 6 remains the final documentation/sample audit/release review; it is
-not implemented as part of this dashboard change. No deployment is authorized.
+See the final [simulated audit](AUDIT_REPORT.md), [reviewer guide](DEMO_GUIDE.md)
+and [source-code release assessment](RELEASE_READINESS.md). No deployment is authorized.

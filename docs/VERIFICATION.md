@@ -99,7 +99,7 @@ unverified. See [Anthropic setup](ANTHROPIC_SETUP.md) for compatibility evidence
 limits and separately authorized manual instructions. GitHub run results are
 recorded in the Draft PR description after completion.
 
-## Current dashboard and safe telemetry verification (PR #5)
+## Historical dashboard and safe telemetry verification (PR #5)
 
 Verified on 2026-10-20 with Ruby 4.0.6, Rails 8.1.4, PostgreSQL 17.11 and the
 unchanged Anthropic 1.80.0 lockfile:
@@ -147,3 +147,119 @@ local environment. This is a minimal privacy boundary, not production observabil
 Secret checks used credential-pattern and file-policy scans plus manual review.
 No secret patterns were found; these checks do not prove every possible secret
 has been detected. A clean Brakeman result is not a complete security assessment.
+
+## Final portfolio audit — PR #6 (2026-10-20)
+
+Source baseline: `171235e24e5a41a02e9da1702eff2b2db2753e74` (verified merged
+PR #5). Repository ID **1425489686**, public `AndriiVal/rails-ai-reliability-lab`;
+origin fetched before branch creation. The visible 13-commit history starts at the
+public Foundation commit; no archive history or private remote was found.
+PR #6 is documentation-only. Results below are newly executed, not reused baseline counts.
+
+### Executed quality gates
+
+- `ruby -v`: **4.0.6**; `bundle -v`: **4.0.16**;
+  `bin/rails --version`: **8.1.4**; `bundle check`: satisfied.
+- `bin/ci`: **PASS**, all seven steps. RSpec **396 examples, 0 failures**,
+  seed **52886**; RuboCop **65 files inspected, no offenses**;
+  Brakeman **8.1.0**, **0 errors / 0 security warnings**.
+- Zeitwerk eager loading and asset precompilation passed inside that gate.
+  Brakeman printed optional concurrent_ruby_ext LoadError diagnostics but completed
+  successfully with no scanner errors; no dependency changes were needed.
+- Dedicated development `db:prepare` passed; test `db:prepare` passed inside CI.
+  `RAILS_ENV=test bin/rails db:migrate:status`: migration **20261020090000 up**.
+  A read-only query confirmed the configured test database and PostgreSQL **17.11**.
+- Initial attempts without a running project DB failed with connection errors
+  (0 examples, 15 load errors). Starting the existing project Compose service and
+  exporting reviewed configuration resolved the environment failure; tests were unchanged.
+- Fresh `git archive origin/master` snapshot in an isolated temporary directory:
+  **all seven bin/ci steps passed**, **396 examples / 0 failures**, seed **57664**.
+  It reused the existing installed bundle and dedicated test DB, with privately
+  exported configuration; no `.env` was copied. This is source-tree isolation,
+  **not a fresh OS, empty volume or dependency-download verification**.
+
+### Observed localhost HTTP evidence
+
+Rails ran with `bin/dev -p 3106`, bound to 127.0.0.1, fake mode forced and real
+provider disabled/key unset. These are actual response status/attempt_count values
+from eight JSON POSTs, using invented subscription text and private Basic Auth.
+Wall latency was measured by the smoke client, not copied from expected scenarios:
+
+- `success`: **200 / 1**, wall **101 ms**, response Runner latency **1 ms**.
+- `rate_limit_then_success`: **200 / 2**, wall **1038 ms**, Runner **1001 ms**.
+- `server_error_then_success`: **200 / 3**, wall **502 ms**, Runner **462 ms**.
+- `always_rate_limited`: **429 / 3**, wall **2039 ms**.
+- `timeout`: **504 / 3**, wall **399 ms**.
+- `malformed_json`: **502 / 1**, wall **28 ms**.
+- `schema_violation`: **502 / 1**, wall **23 ms**.
+- `auth_error`: **502 / 1**, wall **28 ms**.
+
+Error API envelopes do not expose latency_ms; wall measurements above are client
+observations, not invented Runner values. The 429 recovery minimum is one second;
+persistent 429 requires two one-second waits. Remaining wall time includes HTTP,
+Rails, database and scheduling overhead. Backoff jitter makes 503/timeout timings
+vary. Fake timeout raises immediately; it does not simulate a real socket stall.
+
+Public `/up` returned **200**; unauthenticated `/lab` returned **401**. A real cookie/
+server-generated CSRF browser POST for rate-limit recovery returned **200 / 2**;
+a missing-token POST returned **422**. Full request specs separately execute all
+eight browser scenarios with real CSRF verification and virtual retry time.
+
+### Scanning and review boundaries
+
+- **Code scanning:** locked Brakeman executed as above; this is not an advisory audit.
+- **Dependency advisories: NOT VERIFIED.** Neither bundle-audit executable nor
+  bundler-audit gem was installed (`bundle exec bundler-audit --version` unavailable).
+  No scanner gem, service or unrelated dependency upgrade was added.
+- **Secrets:** read-only regex review of **13 visible commits / 186 unique blobs**
+  found no matches for PEM private keys, Anthropic token patterns, GitHub token
+  patterns or AWS access-key IDs. History path review found no `.env`, master key,
+  archive/client/employer-named artifacts. This bounded heuristic is not exhaustive
+  secret detection; no hosted secret-scanner status is claimed.
+- `.env`, master key and credential file ignore rules were checked with
+  `git check-ignore`; no such sensitive file is tracked. Active dependency declarations,
+  lockfile, routes, controller guards, model/schema, subscriber and tests were reviewed.
+  No debug/TODO/FIXME markers in app/lib/config indicated a critical omission.
+  No employer/client material was identified; this is not a provenance/legal audit.
+- **Visuals:** desktop **1440×1400**, mobile **390×1800** PNGs visually inspected.
+  Text/layout are readable; no visible keys, passwords, tokens or real personal data.
+  Mobile image ends partway through history and does not prove the full-page scroll
+  behavior. Prior capture method used rendered HTML with tokens removed; images
+  are reused, not newly captured. Video deferred to [storyboard](DEMO_GUIDE.md).
+- **Manual architecture/privacy review:** documented in [simulated findings](AUDIT_REPORT.md)
+  and [security](SECURITY.md). No High/Critical current code vulnerability was identified
+  in this bounded review; that is not a blanket absence-of-vulnerabilities claim.
+
+GitHub Actions for the documentation commit is reported separately after the Draft
+PR is opened. No live Anthropic request, deployment, tag, release or merge occurred.
+
+### Final documentation review
+
+A separate read-only review context inspected the complete documentation diff and
+new audit/demo/readiness reports against actual controllers, workflow, providers,
+runner/policy, model/schema, subscriber and tests. It reported **no actionable
+findings**, confirming the mandatory disclaimer, exact cited test names and scoped
+readiness claims. It did not independently rerun tests, authenticate historical
+execution logs, reinspect screenshots or check hosted CI. No external AI review
+provider was invoked.
+
+Relative Markdown targets/heading anchors and balanced fences were checked across
+13 Markdown files; 92 references passed before final evidence links were added.
+`git diff --check` passed; all changes are Markdown documentation.
+
+Public HTTPS documentation references returned HTTP 200 (13 URLs). The configured
+API origin is not a documentation page and returned 404 on an unauthenticated GET;
+no Messages/inference endpoint was called by the link check. Relative/new-branch
+file links were checked locally before publication. No paid request was made.
+
+### Hosted CI evidence
+
+[GitHub Actions run 39438363465](https://github.com/AndriiVal/rails-ai-reliability-lab/actions/runs/39438363465)
+completed **successfully** for documentation commit
+`9d07378c33e77dacd8da54384336e8d261255a26` in
+[Draft PR #6](https://github.com/AndriiVal/rails-ai-reliability-lab/pull/6).
+The inspected job log confirms **396 examples / 0 failures** (seed **3094**),
+**65 RuboCop files / no offenses**, **0 Brakeman errors / 0 warnings**, and all
+seven shared `bin/ci` steps passed. This evidence-only follow-up updates
+the specification checkbox/report; its final commit status is tracked in that PR.
+The PR remains draft and unmerged.

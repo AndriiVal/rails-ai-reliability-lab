@@ -1,5 +1,54 @@
 # Application architecture
 
+The arrows below describe calls or explicit data flow, not a future design.
+
+```mermaid
+flowchart TD
+  subgraph HTTP[HTTP and browser boundaries]
+    B[Browser] --> BA[Basic Auth + browser CSRF]
+    BA --> L["GET /lab; POST /lab/run"]
+    C[HTTP client] --> AA[Basic Auth: stateless API]
+    AA --> A["POST /api/v1/classifications"]
+  end
+  subgraph DOMAIN[Domain and orchestration]
+    L --> W[Shared ClassificationWorkflow]
+    A --> W
+    W --> T[TicketClassifier: input and configuration guards]
+  end
+  subgraph TIME[Retry and time management]
+    T --> R[Reliability::Runner]
+    R --> P[RetryPolicy]
+  end
+  subgraph ADAPTERS[Provider adapters]
+    R --> F[Fake]
+    R --> N[Anthropic: explicit API opt-in]
+  end
+  F --> V[ClassificationValidator via Runner]
+  N --> V
+  subgraph STORE[Persistence]
+    W --> RR[RunRecorder]
+    RR --> DB[(PostgreSQL llm_runs)]
+    DB --> H[Latest ten Fake rows]
+    H --> L
+  end
+  subgraph OBS[Observability]
+    RR --> E[Rails structured terminal event]
+    E --> S[Allowlisted local log subscriber]
+  end
+```
+
+`LabController` injects Fake configuration and provider; the shared Runner does
+not make Anthropic reachable from the browser. The API may select Anthropic only
+through trusted server configuration. The compact diagram omits result-return
+arrows: validated outcomes return through classifier/workflow to each controller.
+
+Trust boundaries are untrusted HTTP input → bounded controller parser → classifier
+validation; provider output → strict validator; workflow metadata → model/database
+constraints; terminal event → six-field subscriber allowlist. Authentication is
+not provider authorization: real API use additionally requires all opt-in guards.
+Browser CSRF is session-based; the JSON API has no browser session. No client can
+choose model, endpoint, provider credentials or retry policy.
+
 A conventional full Rails monolith runs on the Ubuntu host. PostgreSQL 17 runs
 alone in project-scoped Docker Compose, bound to loopback port 5433. Development
 and test databases have distinct names. LlmRun stores metadata only; classification never persists inputs or results.
