@@ -1,6 +1,6 @@
 # Rails AI Reliability Lab — Technical Specification
 
-**Status:** Foundation, the fake classification API and the bounded reliability engine are implemented, including all eight synthetic scenarios. The optional Anthropic adapter is implemented with mocked SDK verification; live account/model behavior remains unverified. The interactive Fake-only dashboard, metadata-only PostgreSQL recording and native Rails terminal events are implemented. Milestone 6 documentation, simulated audit and local verification are complete; final GitHub Actions evidence and owner review remain tracked in the Draft PR.
+**Status:** Foundation, the fake classification API and the bounded reliability engine are implemented, including all eight synthetic scenarios. The optional Anthropic adapter is implemented with mocked SDK verification; live account/model behavior remains unverified. The interactive Fake-only dashboard, metadata-only PostgreSQL recording and native Rails terminal events are implemented. Milestone 6 documentation, simulated audit and local verification are complete; GitHub Actions passed; owner review remains pending in the Draft PR.
 **Version:** 1.0 — 2026-10-20
 **Repository:** `AndriiVal/rails-ai-reliability-lab`
 **Owner:** Andrii Valchuk
@@ -495,7 +495,7 @@ Rails 8.1 also supports `config/ci.rb` / `bin/ci`. If using it, **edit its gener
 
 ## Product roadmap
 
-Milestones 1–5 are implemented, with real-provider behavior verified through mocks only. Milestone 6 documentation and local checks are complete; hosted CI and owner review are recorded in the Draft PR.
+Milestones 1–5 are implemented, with real-provider behavior verified through mocks only. Milestone 6 documentation and local checks are complete; hosted CI passed and owner review remains pending in the Draft PR.
 
 ### Milestone 1 — Foundation
 
@@ -582,7 +582,7 @@ Concise ADRs: Rails monolith; sync vs job; single retry owner; no persisted raw 
 - [x] Anthropic adapter is opt-in; SDK retries disabled and mocked in tests.
 - [x] All request/auth/security and fault injection tests pass.
 - [x] Metadata/events contain no sensitive message contents or secrets.
-- [ ] CI green for test, lint, Zeitwerk and Brakeman.
+- [x] CI green for test, lint, Zeitwerk and Brakeman (PR #6 run linked in verification).
 - [ ] `/lab` full mobile interaction verified (scenario rendering/tests and cropped mobile screenshot verified).
 - [x] README / architecture / security / sample audit report accurately reflect real implementation.
 - [x] Final read-only independent source/documentation review reports no actionable findings (scope/limits in verification).

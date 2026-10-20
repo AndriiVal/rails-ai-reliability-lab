@@ -23,9 +23,10 @@ files / no offenses**, Brakeman **0 errors / 0 warnings**. Dependencies, test DB
 Zeitwerk and assets passed. `db:migrate:status` shows the sole metadata migration up.
 A fresh tracked-source snapshot repeated the gate successfully using existing
 dependencies and the dedicated DB. Full commands, seeds and environment failures
-are recorded in [verification](VERIFICATION.md). GitHub Actions for the final
-commit must be green before review-readiness is declared; see the linked Draft PR
-for the observed run rather than treating local CI as hosted CI evidence.
+are recorded in [verification](VERIFICATION.md). [Hosted GitHub Actions](https://github.com/AndriiVal/rails-ai-reliability-lab/actions/runs/39438363465)
+passed for documentation commit `9d07378c33e77dacd8da54384336e8d261255a26`.
+[Draft PR #6](https://github.com/AndriiVal/rails-ai-reliability-lab/pull/6) tracks the
+final evidence-only follow-up status; local CI is not substituted for hosted evidence.
 
 ## Reproducibility — PASS within stated limits
 

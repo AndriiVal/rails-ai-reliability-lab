@@ -251,3 +251,15 @@ Public HTTPS documentation references returned HTTP 200 (13 URLs). The configure
 API origin is not a documentation page and returned 404 on an unauthenticated GET;
 no Messages/inference endpoint was called by the link check. Relative/new-branch
 file links were checked locally before publication. No paid request was made.
+
+### Hosted CI evidence
+
+[GitHub Actions run 39438363465](https://github.com/AndriiVal/rails-ai-reliability-lab/actions/runs/39438363465)
+completed **successfully** for documentation commit
+`9d07378c33e77dacd8da54384336e8d261255a26` in
+[Draft PR #6](https://github.com/AndriiVal/rails-ai-reliability-lab/pull/6).
+The inspected job log confirms **396 examples / 0 failures** (seed **3094**),
+**65 RuboCop files / no offenses**, **0 Brakeman errors / 0 warnings**, and all
+seven shared `bin/ci` steps passed. This evidence-only follow-up updates
+the specification checkbox/report; its final commit status is tracked in that PR.
+The PR remains draft and unmerged.
