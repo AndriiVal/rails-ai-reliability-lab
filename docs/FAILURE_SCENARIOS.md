@@ -87,9 +87,10 @@ classification. A return or validation completion
 at/after the overall deadline is terminal. No Timeout.timeout, asynchronous
 interruption or forced cancellation is used. A blocking provider or sleeper can
 return late: these checks reject that result and prevent further calls but
-cannot force Ruby to return precisely at the deadline. Future real adapters
-must apply the supplied budget to their actual HTTP transport and disable SDK
-retries. Those adapter/transport guarantees have not been tested here.
+cannot force Ruby to return precisely at the deadline. The optional Anthropic
+adapter propagates budgets and disables SDK retries;
+installed-SDK/WebMock tests cover those boundaries. Live transport behavior
+remains unverified.
 
 ## Testing and response interpretation
 

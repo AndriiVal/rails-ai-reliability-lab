@@ -93,3 +93,71 @@
   controller is needed for this workflow. Keep full CSRF plus Basic Auth.
 - Show ten indexed, authenticated Fake-only history rows, never full UUIDs or
   content. Recommend manual 30-day metadata retention; no scheduled cleanup.
+
+## ADR summary — rationale and rejected alternatives
+
+### Rails monolith and synchronous execution
+
+**Decision:** Keep HTTP, orchestration, validation and local metadata in one Rails
+application; execute classifications synchronously. **Rationale:** A reviewer can
+trace one request and reproduce failures without additional services. **Tradeoff:**
+Retries occupy Puma workers; an overall cooperative budget is not traffic control.
+**Rejected for this scope:** Separate API services and job workers add deployment,
+queue state and recovery contracts that this localhost demonstration does not need.
+A public service would need a separate capacity and asynchronous-work design.
+
+### One retry owner and no circuit breaker
+
+**Decision:** Reliability::Runner exclusively owns retries; disable SDK retries and
+redirect resends. **Rationale:** Attempt counts and deadlines remain inspectable
+across adapters. **Tradeoff:** Adapter integration must be tested against the locked
+SDK. **Rejected:** Nested SDK retries obscure send counts; a process-local circuit
+breaker adds state that does not establish a meaningful multi-process outage policy.
+No shared circuit breaker or job recovery system is claimed.
+
+### Deterministic Fake and explicit real-provider opt-in
+
+**Decision:** Fake is default and mandatory for browser execution. Real API use
+requires all server-owned guards. **Rationale:** CI and interviews need reproducible
+failure sequences without billing or credentials. **Tradeoff:** Fake fixtures prove
+control flow, not model quality or network behavior. **Rejected:** Live-provider CI
+would be nondeterministic, credential-dependent and potentially billable; automatic
+fallback could hide configuration failures and spend money unexpectedly.
+
+### Independent validation and final-success-only usage
+
+**Decision:** Validate original JSON even after structured-output requests; report
+only nonnegative usage from the final successful SDK response. **Rationale:** Schema
+contracts must reject coercion, extra keys and overlong summaries independently;
+unknown usage is null. **Tradeoff:** Structurally valid output can remain inaccurate,
+and returned token counts understate total billed work after retries. **Rejected:**
+Trusting provider grammar or inventing aggregate usage would overstate the evidence.
+This project is not a billing ledger or accuracy benchmark.
+
+### Content-free metadata and best-effort terminal events
+
+**Decision:** Store bounded scalar metadata, conditionally transition started to one
+terminal state, then attempt a six-field event. **Rationale:** Demonstrate correlation
+and failure handling without retaining prompt/completion content. **Tradeoff:**
+Reduced diagnostic detail; crashes can leave started rows or omit events. **Rejected:**
+Raw JSON payload storage increases privacy risk; an outbox/recovery worker adds
+operational scope. No transactional event delivery or automated retention is promised.
+
+### Basic Auth for a local demonstration
+
+**Decision:** Use Rails Basic Auth with fail-closed environment credentials, browser
+CSRF and escaped output; leave only boot health public. **Rationale:** A compact
+single-owner access gate is sufficient for a loopback demo. **Tradeoff:** No user
+identities, quotas, audit-grade authorization or traffic throttling. **Rejected:**
+Public commercial access under this gate; it would require TLS, stronger identity,
+authorization and abuse/budget controls as a separate project.
+
+### WebMock and virtual time
+
+**Decision:** Exercise the installed SDK with WebMock and inject monotonic/wall clocks,
+sleeper and jitter into reliability tests. **Rationale:** Exact request counts and
+budget boundaries can be asserted quickly without live calls. **Tradeoff:** Mocks
+cannot verify account access, actual transport latency or billing. **Rejected:**
+Real sleep-based edge tests are slower and scheduling-sensitive; live network tests
+are unsuitable for ordinary CI. Localhost Fake smoke checks separately exercise
+real Rails HTTP boundaries and real retry waits.

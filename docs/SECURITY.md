@@ -118,3 +118,14 @@ full UUIDs. Initial DB failure prevents execution; a terminal failure can leave 
 started row or missing event. No outbox or background recovery is promised.
 Use the manual retention guidance in [DASHBOARD.md](DASHBOARD.md); keep local DB
 and logs private. Do not enable content capture in proxies or new subscribers.
+
+## Final review scope
+
+The [simulated engineering audit](AUDIT_REPORT.md) describes five hypothetical
+unsafe patterns and their existing controls, not five newly discovered historical
+vulnerabilities. [Final verification](VERIFICATION.md#final-portfolio-audit--pr-6-2026-10-20)
+records executed code scanning, bounded Git-history credential-pattern checks and
+privacy tests separately. A dependency advisory scanner was unavailable, so no
+advisory-clean claim is made. No live Anthropic request was performed. See
+[source-code readiness and unresolved verification limits](RELEASE_READINESS.md)
+before interpreting a green local quality gate as production suitability.
